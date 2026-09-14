@@ -10,6 +10,9 @@ def step_from_sigmas(sigmas: torch.Tensor, sample_sigmas: torch.Tensor) -> int:
 
     ``sample_sigmas`` is the descending schedule of N+1 values that the sampler runs; a call at
     ``sample_sigmas[i]`` is step ``i`` and calls between two entries belong to the earlier one.
+    A custom schedule with repeated adjacent sigma values assigns calls to the later of the
+    equal entries (ComfyUI's built-in schedulers are strictly decreasing until the final 0, so
+    this only matters for custom schedules).
     """
     schedule = [float(value) for value in torch.as_tensor(sample_sigmas).detach().flatten().cpu()]
     if len(schedule) < 2:
