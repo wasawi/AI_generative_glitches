@@ -82,6 +82,34 @@ bit-exact). A/B should differ clearly.
 Things to try next: `dropout` strength 1 on `mlp` only; a narrow block range such as 10–14; only late
 steps (5–7); compare `lesion_seed` 0, 1 and 2 at the same settings.
 
+## Random exploration
+
+`workflows/krea2-lesion-random.json` is the smoke workflow with every lesion input except `enabled` driven by
+one random **master seed** (the `Lesion master seed` node, set to *randomize*). Every queue draws a new recipe
+that is always valid:
+
+| Input | Random range |
+|---|---|
+| `mode` | dropout, amplify, sign_flip, noise |
+| `target` | attention, mlp, both |
+| `strength` | 0.05–1.0 for dropout and sign_flip, 0.05–2.0 for amplify and noise |
+| `probability` | 0.05–1.0 |
+| `block_start`, `block_end` | two draws in 0–27, lower one is the start |
+| `step_start`, `step_end` | two draws in 0–7 (the 8 KSampler steps), lower one is the start |
+| `lesion_seed` | the master seed itself |
+
+How it works, with no custom code: three core `Math Expression` nodes mix the master seed (splitmix64), eight more
+read separate bit fields of the result, and two `easy anythingIndexSwitch` nodes turn the mode and target indexes
+into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingIndexSwitch`).
+
+- The KSampler seed stays **fixed**, so only the lesion changes between runs. The `Recipe` preview shows what was drawn.
+- To repeat a result, set `Lesion master seed` to **fixed** and enter that seed. The seed is also stored in the
+  workflow embedded in each saved PNG.
+- To change a range, edit the expression in the matching node: `2.0` and `1.0` in `strength`, `0.05` in
+  `strength`/`probability`, `% 28` in the block nodes. The step nodes use `& 7` (0–7); for a different KSampler
+  step count `N`, use `min(((a >> 46) & 255) % N, ((a >> 54) & 255) % N)` in `step_start` and the same with
+  `max` in `step_end`.
+
 ## Limits
 
 - torch.compile is not supported: ComfyUI's compile wrapper swaps `diffusion_model` at call time regardless
