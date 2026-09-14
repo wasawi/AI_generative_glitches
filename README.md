@@ -17,8 +17,11 @@ The node appears under **experimental → lesion-lab**. Edits in this folder tak
 ## Wiring
 
 ```
-LoaderGGUF / Load Diffusion Model → Lesion Model (Krea2) → KSampler → VAE Decode → Save Image
+GGUF Loader / Unet Loader (GGUF) / Load Diffusion Model → Lesion Model (Krea2) → KSampler → VAE Decode → Save Image
 ```
+
+`GGUF Loader` (`LoaderGGUF`, from the `gguf` custom-node pack) and `Unet Loader (GGUF)` (from ComfyUI-GGUF) are
+alternatives for loading a Krea2 GGUF checkpoint; `Load Diffusion Model` is the core loader for safetensors.
 
 Works with any Krea2 model (GGUF or safetensors). Other architectures are rejected with a clear error.
 The `recipe` output is a one-line summary of the settings; connect it to `Preview Any` or save it with
@@ -35,7 +38,7 @@ your image metadata.
 | `target` | Lesion the output of `attention`, `mlp` or `both` in each block |
 | `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive |
 | `step_start`, `step_end` | Which sampling steps, inclusive; step 0 is the first step KSampler runs |
-| `lesion_seed` | Picks the channels and the noise. Same seed + same settings = same lesion |
+| `lesion_seed` | Picks the channels and the noise. Same seed + same settings = same lesion. Keep it fixed while comparing runs; change it deliberately to get a different lesion pattern |
 
 Only the image being generated is lesioned. Prompt tokens, the text-fusion stage and reference images are
 never touched, so the model still reads the prompt; it just draws it wrongly.
@@ -81,10 +84,13 @@ steps (5–7); compare `lesion_seed` 0, 1 and 2 at the same settings.
 
 ## Limits
 
-- Put this node before any torch.compile node; a compiled model can skip the lesion hooks.
-- Image latents only (no video); single GPU only.
-- The loaders' own limits still apply: the installed ComfyUI-GGUF rejects GGUF files tagged with arch
-  `krea2` (for example `krea2_turbo_Q4_0.gguf`); `museByStableYogi_v25GGUF.gguf` loads.
+- torch.compile is not supported: ComfyUI's compile wrapper swaps `diffusion_model` at call time regardless
+  of node order, so putting this node before or after a torch.compile node does not help; results with
+  torch.compile in the graph are undefined.
+- Single-frame image latents only (multi-frame T > 1 latents are rejected); single GPU only.
+- The loaders' own limits still apply: ComfyUI-GGUF's `Unet Loader (GGUF)` rejects GGUF files tagged with
+  arch `krea2` (for example `krea2_turbo_Q4_0.gguf`); the smoke workflow's `museByStableYogi_v25GGUF.gguf`
+  loads with the `gguf` pack's `GGUF Loader`, which is what the user's own Krea2 workflow uses.
 
 ## Development
 

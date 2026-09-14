@@ -45,8 +45,7 @@ main transformer blocks, restricted to generated-image token positions.
 
 Out (first release): other architectures; text-fusion blocks; text-token or
 reference-image-token lesions; weight lesions or permanent GGUF variants;
-video (5-D) latents; multi-GPU; torch.compile compatibility beyond ordering
-advice.
+multi-frame (T > 1) latents; multi-GPU; torch.compile compatibility.
 
 ## Node
 
@@ -117,9 +116,10 @@ strength `s`:
 
 For `noise`: `rms` is each token's root-mean-square over all `D` channels of
 the original output (shape `[B, n_img, 1]`), computed in float32. `n` is a
-standard-normal field of shape `[n_img, k]` drawn from a generator on the
-activation's device, seeded with `purpose=1`, broadcast over the batch, then
-cast to the activation dtype.
+float32 standard-normal field of shape `[n_img, k]` drawn from a generator on
+the activation's device, seeded with `purpose=1`, broadcast over the batch.
+`a + s × rms × n` is computed in float32 and the result cast to the
+activation's dtype.
 
 The hook returns a new tensor (clone + index assignment); the module's output
 tensor and any input tensor are never modified in place.
@@ -192,8 +192,12 @@ where `executor.class_obj` is the `SingleStreamDiT`. `LesionWrapper.__call__`:
    raise `RuntimeError("Lesion Model (Krea2): sampler did not provide sample_sigmas; use KSampler, KSamplerAdvanced or SamplerCustom")`.
 2. `step = step_from_sigmas(...)`. If outside `[step_start, step_end]`, return
    `executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)`.
-3. If `x.ndim != 4`, raise `ValueError` (video latents unsupported).
-   `patch = executor.class_obj.patch`; `n_img = ceil(H/patch) × ceil(W/patch)`;
+3. Accept `x` of shape `[B, C, H, W]` or `[B, C, 1, H, W]` (ComfyUI passes Krea2 image latents
+   5-D with T = 1, because Krea2's latent_format, Wan21, has `latent_dimensions = 3` and
+   `comfy/sample.py` unsqueezes a 4-D image latent to 5-D before it reaches the diffusion
+   model); raise `ValueError` for any other rank, and for 5-D with T > 1 (multi-frame latents
+   are unsupported). `patch = executor.class_obj.patch`;
+   `n_img = ceil(H/patch) × ceil(W/patch)` using the last two dims of `x` in both cases;
    `txt = context.shape[1]`.
 4. Register `register_forward_hook` on each selected `blocks[i].attn` /
    `blocks[i].mlp`; call the executor; remove every handle in `finally`
@@ -210,7 +214,7 @@ where `executor.class_obj` is the `SingleStreamDiT`. `LesionWrapper.__call__`:
 | Unknown mode/target, non-finite or out-of-range strength/probability, start > end, negative values, `block_end` past last block | `ValueError` at node execution, message names the field |
 | No-op recipe | Clone without wrapper, recipe string says why |
 | Missing sigma info | `RuntimeError` during sampling |
-| Video latent | `ValueError` during sampling |
+| Multi-frame (T > 1) latent | `ValueError` during sampling |
 | Unexpected activation shape/type | `RuntimeError` during sampling |
 | Any exception inside the model | Hooks removed, exception propagates |
 
@@ -247,8 +251,8 @@ differ visibly.
 ## Documentation
 
 `README.md`: symlink command, wiring, every input, mode formulas, step
-meaning, keep `lesion_seed` fixed, limits (place before any torch.compile
-node; no video; no multi-GPU), a first experiment
+meaning, keep `lesion_seed` fixed, limits (torch.compile unsupported; no
+multi-frame latents; no multi-GPU), a first experiment
 (`noise`, strength 0.5, probability 0.25, target both, blocks 0-27, steps 0-3),
 and how to run the tests.
 
@@ -258,5 +262,14 @@ and how to run the tests.
   integration tests against the installed ComfyUI detect this.
 - MPS kernels may not be bit-deterministic between runs; the baseline pair in
   the smoke test measures this before judging the lesion pair.
-- A torch.compile node placed upstream bakes the model graph and may bypass
-  hooks; documented, not handled.
+- torch.compile is not supported: ComfyUI's torch.compile wrapper is an
+  APPLY_MODEL wrapper that swaps `diffusion_model` at call time, and both
+  wrappers end up on the final patcher regardless of node order, so no
+  ordering avoids it; results are undefined with torch.compile in the graph.
+  Documented, not handled.
+- F5: the integration tests build `transformer_options["wrappers"]` by
+  copying `model.wrappers` directly rather than by calling ComfyUI's own
+  sampler-side merge (`comfy.sampler_helpers.prepare_model_patcher`) for
+  every test; one test now exercises the real merge function directly, but a
+  future ComfyUI that stopped merging `model.wrappers` this way would still
+  only be caught by that one test, not by the others in the file.
