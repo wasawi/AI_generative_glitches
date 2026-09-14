@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+
 import torch
 
 from .recipe import LesionRecipe
@@ -54,7 +56,7 @@ def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: st
     elif recipe.mode == "sign_flip":
         lesioned = values * (1.0 - 2.0 * strength)
     elif recipe.mode == "noise":
-        rms = region.float().pow(2).mean(dim=-1, keepdim=True).sqrt()
+        rms = torch.linalg.vector_norm(region, dim=-1, keepdim=True, dtype=torch.float32) / math.sqrt(region.shape[-1])
         generator = torch.Generator(device=out.device)
         generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
         noise = torch.randn((n_img, selected.numel()), generator=generator, device=out.device, dtype=torch.float32)
