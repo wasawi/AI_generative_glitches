@@ -14,7 +14,7 @@
 
 - Write only inside `/Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab` (the repo root, "this folder"). Other paths are read-only. Tests must not write outside this folder: do not use pytest's `tmp_path`/`tmpdir`; use `io.BytesIO`.
 - Python for everything: `/Volumes/DATA/ComfyUI/.venv/bin/python` (Python 3.12.11, torch 2.9.1).
-- Test command (run from the repo root): `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v`. Below this is abbreviated as `$PYTEST <paths>`.
+- Test command (run from the repo root): `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v`. Below this is abbreviated as `$PYTEST <paths>`. Always pass tests or explicit test file paths; never run pytest without a path from the repo root (pytest would import the root __init__.py, which imports ComfyUI).
 - ComfyUI code (read-only): `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`, overridable with env `COMFYUI_ROOT`.
 - Never write, rename or replace a checkpoint; never patch weights; never modify ComfyUI or other custom nodes.
 - Inside the package use relative imports only (`from .recipe import …`). Only `lesion_lab/node.py` imports `comfy`.
@@ -39,7 +39,7 @@
 | `lesion_lab/steps.py` | `step_from_sigmas` |
 | `lesion_lab/runtime.py` | `image_token_count`, `LesionWrapper` (hooks lifecycle) |
 | `lesion_lab/node.py` | `LesionModelKrea2` ComfyUI node |
-| `pytest.ini` | test discovery + no cache dir |
+| `tests/pytest.ini` | pytest options (rootdir = tests/), filters torch's pynvml FutureWarning |
 | `tests/conftest.py` | package on `sys.path`; `comfy_root` fixture |
 | `tests/test_recipe.py`, `tests/test_lesions.py`, `tests/test_steps.py`, `tests/test_runtime.py` | unit tests |
 | `tests/test_node_integration.py` | tiny real Krea2 through real `ModelPatcher` |
@@ -1224,7 +1224,7 @@ Expected: all PASS, none skipped. Lines such as `Exception ignored in: <function
 
 - [ ] **Step 6: Run the whole suite**
 
-Run: `$PYTEST`
+Run: `$PYTEST tests`
 Expected: all PASS, 0 skipped.
 
 - [ ] **Step 7: Commit**
@@ -1528,7 +1528,7 @@ Tests run with the ComfyUI venv's Python; pytest lives in `./.test-deps` (git-ig
 
 ```bash
 /Volumes/DATA/ComfyUI/.venv/bin/python -m pip install --no-cache-dir --target ./.test-deps pytest
-PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest -v
+PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest tests -v
 ```
 
 Integration tests import ComfyUI read-only from `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`
@@ -1538,7 +1538,7 @@ Design and plan: `docs/superpowers/`.
 
 - [ ] **Step 7: Run the whole suite**
 
-Run: `$PYTEST`
+Run: `$PYTEST tests`
 Expected: all PASS, 0 skipped.
 
 - [ ] **Step 8: Commit**
