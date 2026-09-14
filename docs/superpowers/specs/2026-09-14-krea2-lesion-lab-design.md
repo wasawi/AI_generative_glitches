@@ -147,7 +147,7 @@ KSampler Advanced `start_at_step` have shortened it).
 ```
 __init__.py              NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS (relative imports only)
 lesion_lab/__init__.py
-lesion_lab/recipe.py     LesionRecipe (frozen dataclass), build/validate, is_noop, describe()
+lesion_lab/recipe.py     LesionRecipe (frozen dataclass), build, noop_reason(), describe(), validate_against_model()
 lesion_lab/lesions.py    mix_seed, select_channels, apply_lesion (torch only)
 lesion_lab/steps.py      step_from_sigmas (torch only)
 lesion_lab/runtime.py    LesionWrapper, lesion hooks, image-slice computation (torch only, duck-typed)
@@ -174,9 +174,9 @@ package folder on `sys.path`.
    `validate_against_model(recipe, n_blocks=len(diffusion_model.blocks))`
    rejects `block_end` beyond the last block.
 3. `clone = model.clone()`.
-4. No-op recipe: return `(clone, recipe.describe(...))`.
+4. No-op recipe: return `(clone, recipe.describe())`.
 5. Otherwise `clone.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, "lesion_lab", LesionWrapper(recipe))`
-   and return `(clone, recipe.describe(sites=…))`.
+   and return `(clone, recipe.describe())`.
 
 `ModelPatcher.clone()` copies wrapper lists, so the source model never
 carries the wrapper. Chained lesion nodes append to the same key in chain
@@ -232,13 +232,13 @@ PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/
 **Integration tests** (import ComfyUI read-only from `COMFYUI_ROOT`, default `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`; skipped if absent):
 - Tiny real `SingleStreamDiT` (2 blocks, small width) inside a real `ModelPatcher`, driven through the real `WrapperExecutor` with synthetic `sigmas` / `sample_sigmas`: output differs inside the window and is bit-identical outside; hooks removed after success and after a forced exception; source patcher has no wrapper; chained nodes stack; reference-latent path works; non-Krea2 model rejected.
 - GGUF header check (skipped if the file is absent): the tensor names of `museByStableYogi_v25GGUF.gguf` contain `blocks.{0..27}.attn.*` and `blocks.{0..27}.mlp.*`; no tensor data is read.
-- Load-as-ComfyUI check: import this folder via `importlib.util.spec_from_file_location("ComfyUI-LesionLab", "<folder>/__init__.py")` and assert `NODE_CLASS_MAPPINGS["LesionModelKrea2"]`.
+- Load-as-ComfyUI check: import this folder exactly as `nodes.load_custom_node` does (`spec_from_file_location(<folder path with "." replaced by "_x_">, "<folder>/__init__.py")`) and assert `NODE_CLASS_MAPPINGS["LesionModelKrea2"]`, the input names and the outputs.
 
 **Manual smoke test (user, in the running ComfyUI):** after creating the
 symlink and restarting, load `workflows/krea2-lesion-smoke.json` (derived
 read-only from an existing Krea2 workflow of the user's), fixed prompt and
-sampler seed, and generate: baseline (`enabled=False`), baseline again,
-lesion, lesion again. `tools/compare_images.py A.png B.png` reports identical
+sampler seed, and generate alternately: A off, B on, C off, D on (alternating
+because ComfyUI caches results for unchanged inputs; A/C is the baseline pair, B/D the lesion pair). `tools/compare_images.py A.png B.png` reports identical
 / max and mean absolute pixel difference. Pass: all four runs complete, the
 pairs match (or differ only at the level of the setup's normal MPS
 nondeterminism, which the baseline pair measures), and baseline vs lesion
