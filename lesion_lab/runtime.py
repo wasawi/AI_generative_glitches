@@ -22,7 +22,17 @@ MISSING_SIGMAS = (
 
 
 def image_token_count(x: torch.Tensor, patch: int) -> int:
-    if x.ndim != 4:
+    # comfy/sample.py:58-59 unsqueezes a 4-D image latent to 5-D [B, C, 1, H, W] whenever
+    # the model's latent_format reports latent_dimensions == 3 (Krea2 uses Wan21, which does),
+    # so real Krea2 latents arrive 5-D with T == 1. SingleStreamDiT._forward flattens T into
+    # the batch dimension without repeating context, so only T == 1 is coherent.
+    if x.ndim == 5:
+        if x.shape[2] != 1:
+            raise ValueError(
+                "Lesion Model (Krea2) supports single-frame image latents [B, C, H, W] or "
+                f"[B, C, 1, H, W] only; multi-frame (T > 1) latents are unsupported, got {tuple(x.shape)}"
+            )
+    elif x.ndim != 4:
         raise ValueError(f"Lesion Model (Krea2) supports image latents [B, C, H, W] only; got {x.ndim}-D input")
     return math.ceil(x.shape[-2] / patch) * math.ceil(x.shape[-1] / patch)
 

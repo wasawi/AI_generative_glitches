@@ -69,9 +69,21 @@ def test_image_token_count_rounds_up_odd_sizes():
     assert image_token_count(torch.zeros(1, 4, 5, 6), 2) == 9
 
 
-def test_video_latents_are_rejected():
-    with pytest.raises(ValueError, match="image latents"):
+def test_image_token_count_treats_4d_and_5d_singleframe_the_same():
+    # Real Krea2 latents are 5-D with T=1 (comfy/sample.py:58-59 unsqueezes a 4-D image
+    # latent because Krea2's latent_format, Wan21, has latent_dimensions == 3). Both ranks
+    # must give the same token count for the same H, W; odd H exercises the ceil() rounding.
+    assert image_token_count(torch.zeros(1, 4, 5, 6), 2) == image_token_count(torch.zeros(1, 4, 1, 5, 6), 2) == 9
+
+
+def test_multiframe_latents_are_rejected():
+    with pytest.raises(ValueError, match="multi-frame"):
         image_token_count(torch.zeros(1, 4, 2, 4, 6), 2)
+
+
+def test_3d_latents_are_rejected():
+    with pytest.raises(ValueError, match="image latents"):
+        image_token_count(torch.zeros(4, 5, 6), 2)
 
 
 def test_outside_step_window_runs_untouched_without_hooks():
