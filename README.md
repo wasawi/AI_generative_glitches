@@ -119,7 +119,7 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 |---|---|
 | `distribution` | Noise values: `gaussian`, `uniform`, `laplace` (occasional large values), `cauchy` (rare huge spikes, clipped at ±20), `spikes` (most values 0, a few big ones), `binary` (±1). Noise mode only |
 | `spike_density` | Fraction of values that spike with `spikes` |
-| `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain, 8 = large blobs. Noise mode only |
+| `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain … up to 64 = very large blobs. Noise mode only |
 | `step_curve` | Strength multiplier across sampling steps (every mode) |
 | `block_curve` | Strength multiplier across the 28 blocks (every mode) |
 | `spatial_mask` | Strength multiplier over the picture (every mode): white = full lesion, black = untouched |
@@ -127,11 +127,15 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 All noise distributions except `cauchy` have the same average size, so `strength` means the same across them.
 
 **Curves.** Any node with a `FLOAT` value or list output works, for example KJNodes **Spline Editor**
-(add it with a double-click search, then connect its `float` output). A curve is always stretched over the
-whole run: its first point is step 0 (or block 0), its last point the final step (or block 27), with
-straight lines in between, whatever `points_to_sample` is. Values above 1 boost the lesion; negative
-values reverse it. The lesion node's step and block windows still limit where it acts, so open them fully
-(`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve do the shaping.
+(add it with a double-click search, then connect its `float` output). For one control point per sampling
+step, set the Spline Editor's `points_to_sample` to your KSampler step count (8 in the example workflows)
+and connect it to `step_curve`; for one control point per Krea2 block, set `points_to_sample` to 28 and
+connect it to `block_curve`. A curve is always stretched over the whole run regardless of that count: its
+first point is step 0 (or block 0), its last point the final step (or block 27), with straight lines in
+between, whatever `points_to_sample` is — so any other length still works. Values above 1 boost the
+lesion; negative values reverse it. The lesion node's step and block windows still limit where it acts,
+so open them fully (`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve
+do the shaping.
 
 **Masks.** Any `MASK` works: KJNodes `CreateShapeMask`, `CreateGradientMask`, `CreateVoronoiMask`,
 `CreateFluidMask`, or a mask painted with ComfyUI's mask editor on a `Load Image` node. The mask is
