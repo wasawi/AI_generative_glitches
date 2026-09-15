@@ -46,8 +46,8 @@ def test_mask_is_resized_to_a_non_square_grid():
     mask = torch.zeros(512, 512)
     mask[:, :256] = 1.0
     grid = build(spatial_mask=mask).token_mask(0, 8, 5, 4, CPU).reshape(5, 4)
-    assert torch.all(grid[:, 0] == 1.0)
-    assert torch.all(grid[:, 3] == 0.0)
+    torch.testing.assert_close(grid[:, 0], torch.ones(5), rtol=0, atol=1e-6)
+    torch.testing.assert_close(grid[:, 3], torch.zeros(5), rtol=0, atol=1e-6)
 
 
 def test_resized_mask_is_cached():

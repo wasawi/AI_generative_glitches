@@ -109,10 +109,9 @@ class LesionShape:
             frame = min(frames - 1, math.floor(step * (frames - 1) / (n_steps - 1) + 0.5))
         key = (frame, h, w, str(device))
         if key not in self._mask_cache:
-            # Interpolate in float64 for precision, then convert back to float32
             resized = F.interpolate(
-                self.spatial_mask[frame][None, None].to(torch.float64), size=(h, w), mode="bilinear", align_corners=False, antialias=True
-            ).to(torch.float32)
+                self.spatial_mask[frame][None, None], size=(h, w), mode="bilinear", align_corners=False, antialias=True
+            )
             self._mask_cache[key] = resized.reshape(1, h * w, 1).to(device)
         return self._mask_cache[key]
 
