@@ -6,10 +6,12 @@ import math
 from dataclasses import dataclass, field
 
 import torch
+import torch.nn.functional as F
 
 DISTRIBUTIONS = ("gaussian", "uniform", "laplace", "cauchy", "spikes", "binary")
 CAUCHY_CLIP = 20.0
 NOISE_SCALE_MAX = 64
+_EDGE = 1e-7
 
 
 def _curve(name, value):
@@ -95,6 +97,55 @@ class LesionShape:
 
     def block_multiplier(self, block: int, n_blocks: int) -> float:
         return 1.0 if self.block_curve is None else curve_at(self.block_curve, block, n_blocks)
+
+    def token_mask(self, step: int, n_steps: int, h: int, w: int, device) -> torch.Tensor | None:
+        """Mask frame for ``step`` resized to the ``h × w`` token grid, shaped [1, h*w, 1] (row-major)."""
+        if self.spatial_mask is None:
+            return None
+        frames = self.spatial_mask.shape[0]
+        if frames == 1 or n_steps == 1:
+            frame = 0
+        else:
+            frame = min(frames - 1, math.floor(step * (frames - 1) / (n_steps - 1) + 0.5))
+        key = (frame, h, w, str(device))
+        if key not in self._mask_cache:
+            # Interpolate in float64 for precision, then convert back to float32
+            resized = F.interpolate(
+                self.spatial_mask[frame][None, None].to(torch.float64), size=(h, w), mode="bilinear", align_corners=False, antialias=True
+            ).to(torch.float32)
+            self._mask_cache[key] = resized.reshape(1, h * w, 1).to(device)
+        return self._mask_cache[key]
+
+    def draw_noise(self, k: int, h: int, w: int, generator: torch.Generator, device) -> torch.Tensor:
+        """Noise field of shape [h*w, k] from the chosen distribution and blob size."""
+        scale = self.noise_scale
+        size = (k, math.ceil(h / scale), math.ceil(w / scale))
+        if self.distribution == "gaussian":
+            values = torch.randn(size, generator=generator, device=device, dtype=torch.float32)
+        else:
+            u = torch.rand(size, generator=generator, device=device, dtype=torch.float32)
+            if self.distribution == "uniform":
+                values = (2.0 * u - 1.0) * math.sqrt(3.0)
+            elif self.distribution == "laplace":
+                t = torch.clamp(u - 0.5, -0.5 + _EDGE, 0.5 - _EDGE)
+                values = -(1.0 / math.sqrt(2.0)) * torch.sign(t) * torch.log1p(-2.0 * t.abs())
+            elif self.distribution == "cauchy":
+                values = torch.clamp(
+                    torch.tan(math.pi * (torch.clamp(u, _EDGE, 1.0 - _EDGE) - 0.5)), -CAUCHY_CLIP, CAUCHY_CLIP
+                )
+            elif self.distribution == "spikes":
+                signs = torch.rand(size, generator=generator, device=device, dtype=torch.float32)
+                spike = torch.where(signs < 0.5, -1.0, 1.0) / math.sqrt(self.spike_density)
+                values = torch.where(u < self.spike_density, spike, torch.zeros((), device=device))
+            elif self.distribution == "binary":
+                values = torch.where(u < 0.5, -1.0, 1.0)
+            else:
+                raise ValueError(f"unsupported distribution: {self.distribution!r}")
+        if scale > 1:
+            values = F.interpolate(values[None], size=(h, w), mode="bilinear", align_corners=False)[0]
+            rms = values.pow(2).mean(dim=(1, 2), keepdim=True).sqrt()
+            values = torch.where(rms > 0, values / rms.clamp_min(1e-12), values)
+        return values.reshape(k, h * w).T
 
     def describe(self, mode: str) -> str:
         def points(curve):
