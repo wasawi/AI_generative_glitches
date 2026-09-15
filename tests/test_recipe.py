@@ -48,11 +48,12 @@ def test_noop_reasons(overrides, reason):
     assert recipe.describe().startswith(f"no-op ({reason}) | krea2-lesion v1 | ")
 
 
-@pytest.mark.parametrize(("mode", "limit"), [("dropout", 1), ("sign_flip", 1), ("amplify", 10), ("noise", 10)])
-def test_strength_limit_per_mode(mode, limit):
-    assert build(mode=mode, strength=limit).strength == limit
-    with pytest.raises(ValueError, match=f"strength for mode {mode} must be between 0 and {limit}"):
-        build(mode=mode, strength=limit + 0.01)
+@pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip", "noise"])
+def test_every_mode_accepts_strength_up_to_1000(mode):
+    assert build(mode=mode, strength=2.0).strength == 2.0
+    assert build(mode=mode, strength=1000).strength == 1000
+    with pytest.raises(ValueError, match="strength must be between 0 and 1000; got 1000.01"):
+        build(mode=mode, strength=1000.01)
 
 
 @pytest.mark.parametrize(
@@ -61,7 +62,7 @@ def test_strength_limit_per_mode(mode, limit):
         ({"mode": "scale"}, "mode must be one of dropout, amplify, sign_flip, noise; got 'scale'"),
         ({"target": "ff"}, "target must be one of attention, mlp, both; got 'ff'"),
         ({"strength": float("nan")}, "strength must be a finite number"),
-        ({"strength": -0.1}, "strength for mode noise must be between 0 and 10"),
+        ({"strength": -0.1}, "strength must be between 0 and 1000; got -0.1"),
         ({"probability": 1.5}, "probability must be between 0 and 1"),
         ({"probability": "x"}, "probability must be a finite number"),
         ({"block_start": -1}, "block_start must be >= 0"),

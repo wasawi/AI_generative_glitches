@@ -8,7 +8,7 @@ from dataclasses import dataclass
 MODES = ("dropout", "amplify", "sign_flip", "noise")
 TARGETS = ("attention", "mlp", "both")
 FAMILIES = ("attention", "mlp")
-STRENGTH_MAX = {"dropout": 1.0, "amplify": 10.0, "sign_flip": 1.0, "noise": 10.0}
+STRENGTH_MAX = 1000.0
 SEED_MAX = 2**63 - 1
 
 
@@ -62,9 +62,8 @@ class LesionRecipe:
         if target not in TARGETS:
             raise ValueError(f"target must be one of {', '.join(TARGETS)}; got {target!r}")
         strength_value = _finite_float("strength", strength)
-        limit = STRENGTH_MAX[mode]
-        if not 0.0 <= strength_value <= limit:
-            raise ValueError(f"strength for mode {mode} must be between 0 and {limit:g}; got {strength_value:g}")
+        if not 0.0 <= strength_value <= STRENGTH_MAX:
+            raise ValueError(f"strength must be between 0 and {STRENGTH_MAX:g}; got {strength_value:g}")
         probability_value = _finite_float("probability", probability)
         if not 0.0 <= probability_value <= 1.0:
             raise ValueError(f"probability must be between 0 and 1; got {probability_value:g}")

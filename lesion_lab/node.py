@@ -5,7 +5,7 @@ from __future__ import annotations
 import comfy.patcher_extension
 from comfy.ldm.krea2.model import SingleStreamDiT
 
-from .recipe import MODES, SEED_MAX, TARGETS, LesionRecipe, validate_against_model
+from .recipe import MODES, SEED_MAX, STRENGTH_MAX, TARGETS, LesionRecipe, validate_against_model
 from .runtime import LesionWrapper
 
 WRAPPER_KEY = "lesion_lab"
@@ -28,7 +28,7 @@ class LesionModelKrea2:
                 "model": ("MODEL",),
                 "enabled": ("BOOLEAN", {"default": True}),
                 "mode": (list(MODES), {"default": "noise"}),
-                "strength": ("FLOAT", {"default": 0.15, "min": 0.0, "max": 10.0, "step": 0.01}),
+                "strength": ("FLOAT", {"default": 0.15, "min": 0.0, "max": STRENGTH_MAX, "step": 0.01}),
                 "probability": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 1.0, "step": 0.01}),
                 "target": (list(TARGETS), {"default": "both"}),
                 "block_start": ("INT", {"default": 0, "min": 0, "max": 999}),

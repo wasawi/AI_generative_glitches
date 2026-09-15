@@ -33,7 +33,7 @@ your image metadata.
 |---|---|
 | `enabled` | Off = unmodified model |
 | `mode` | `dropout`, `amplify`, `sign_flip` or `noise` (below) |
-| `strength` | Dose. 0 is always no change |
+| `strength` | Dose, 0–1000. 0 is always no change |
 | `probability` | Fraction of the hidden channels hit at each site (at least one channel when > 0) |
 | `target` | Lesion the output of `attention`, `mlp` or `both` in each block |
 | `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive |
@@ -47,10 +47,10 @@ At each site and step, the same randomly chosen channels are hit for every image
 
 | Mode | Selected channels become | `strength` range |
 |---|---|---|
-| `dropout` | `x × (1 − s)` (1 = silenced) | 0–1 |
-| `amplify` | `x × (1 + s)` | 0–10 |
-| `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated) | 0–1 |
-| `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | 0–10 |
+| `dropout` | `x × (1 − s)` (1 = silenced, 2 = negated, 5 = −4x) | 0–1000 |
+| `amplify` | `x × (1 + s)` | 0–1000 |
+| `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated, 1.5 = −2x) | 0–1000 |
+| `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | 0–1000 |
 
 Steps: with 8 sampling steps, `step_start=0, step_end=3` lesions the first half, where composition is
 decided; later steps mostly affect detail and texture. With `denoise < 1` or KSampler Advanced
@@ -115,6 +115,8 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 - torch.compile is not supported: ComfyUI's compile wrapper swaps `diffusion_model` at call time regardless
   of node order, so putting this node before or after a torch.compile node does not help; results with
   torch.compile in the graph are undefined.
+- Very high strengths can overflow models that run in float16 (black image or NaN errors); bfloat16 and
+  float32 models have far more headroom.
 - Single-frame image latents only (multi-frame T > 1 latents are rejected); single GPU only.
 - The loaders' own limits still apply: ComfyUI-GGUF's `Unet Loader (GGUF)` rejects GGUF files tagged with
   arch `krea2` (for example `krea2_turbo_Q4_0.gguf`); the smoke workflow's `museByStableYogi_v25GGUF.gguf`

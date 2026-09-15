@@ -29,6 +29,7 @@ def test_package_imports_the_way_comfyui_loads_custom_nodes(comfy_root):
         assert required["mode"][0] == ["dropout", "amplify", "sign_flip", "noise"]
         assert required["mode"][1]["default"] == "noise"
         assert required["lesion_seed"][1]["max"] == 2**63 - 1
+        assert required["strength"][1]["max"] == 1000.0
     finally:
         for name in [n for n in sys.modules if n == sys_module_name or n.startswith(sys_module_name + ".")]:
             del sys.modules[name]

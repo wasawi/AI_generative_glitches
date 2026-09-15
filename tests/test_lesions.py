@@ -62,7 +62,11 @@ def test_select_channels_is_deterministic_distinct_and_site_specific():
 
 @pytest.mark.parametrize(
     ("mode", "strength", "factor"),
-    [("dropout", 1.0, 0.0), ("dropout", 0.25, 0.75), ("amplify", 1.0, 2.0), ("sign_flip", 1.0, -1.0), ("sign_flip", 0.5, 0.0)],
+    [
+        ("dropout", 1.0, 0.0), ("dropout", 0.25, 0.75), ("amplify", 1.0, 2.0), ("sign_flip", 1.0, -1.0), ("sign_flip", 0.5, 0.0),
+        # strengths above 1 continue the same formulas
+        ("dropout", 2.0, -1.0), ("dropout", 5.0, -4.0), ("sign_flip", 1.5, -2.0), ("amplify", 1000.0, 1001.0),
+    ],
 )
 def test_scaling_modes_apply_their_formula_to_selected_image_channels(mode, strength, factor):
     out = activations()
@@ -116,6 +120,14 @@ def test_input_is_not_mutated():
 @pytest.mark.parametrize("mode", ["dropout", "noise"])
 def test_dtype_is_preserved(dtype, mode):
     result = lesion(activations(dtype=dtype), recipe(mode, 0.5))
+    assert result.dtype == dtype
+    assert torch.isfinite(result.float()).all()
+
+
+@pytest.mark.parametrize("dtype", [torch.float32, torch.bfloat16])
+@pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip", "noise"])
+def test_maximum_strength_stays_finite(dtype, mode):
+    result = lesion(activations(dtype=dtype), recipe(mode, 1000.0))
     assert result.dtype == dtype
     assert torch.isfinite(result.float()).all()
 
