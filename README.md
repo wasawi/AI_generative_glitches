@@ -110,6 +110,38 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
   step count `N`, use `min(((a >> 46) & 255) % N, ((a >> 54) & 255) % N)` in `step_start` and the same with
   `max` in `step_end`.
 
+## Shaping the lesion
+
+`Lesion Shape (Krea2)` is an optional companion node. Connect its `shape` output to the lesion node's
+`shape` input; without it the lesion node behaves exactly as described above.
+
+| Input | Meaning |
+|---|---|
+| `distribution` | Noise values: `gaussian`, `uniform`, `laplace` (occasional large values), `cauchy` (rare huge spikes, clipped at ±20), `spikes` (most values 0, a few big ones), `binary` (±1). Noise mode only |
+| `spike_density` | Fraction of values that spike with `spikes` |
+| `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain, 8 = large blobs. Noise mode only |
+| `step_curve` | Strength multiplier across sampling steps (every mode) |
+| `block_curve` | Strength multiplier across the 28 blocks (every mode) |
+| `spatial_mask` | Strength multiplier over the picture (every mode): white = full lesion, black = untouched |
+
+All noise distributions except `cauchy` have the same average size, so `strength` means the same across them.
+
+**Curves.** Any node with a `FLOAT` value or list output works, for example KJNodes **Spline Editor**
+(add it with a double-click search, then connect its `float` output). A curve is always stretched over the
+whole run: its first point is step 0 (or block 0), its last point the final step (or block 27), with
+straight lines in between, whatever `points_to_sample` is. Values above 1 boost the lesion; negative
+values reverse it. The lesion node's step and block windows still limit where it acts, so open them fully
+(`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve do the shaping.
+
+**Masks.** Any `MASK` works: KJNodes `CreateShapeMask`, `CreateGradientMask`, `CreateVoronoiMask`,
+`CreateFluidMask`, or a mask painted with ComfyUI's mask editor on a `Load Image` node. The mask is
+stretched to the image, so draw it at the image's aspect ratio. A mask with several frames plays across
+the sampling steps (first frame at step 0, last frame at the final step).
+
+`workflows/krea2-lesion-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
+`spikes` (density 0.05, blob size 4) inside a centred circle from `CreateShapeMask`. It needs
+comfyui-kjnodes.
+
 ## Limits
 
 - torch.compile is not supported: ComfyUI's compile wrapper swaps `diffusion_model` at call time regardless

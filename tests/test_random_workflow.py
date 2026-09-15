@@ -1,15 +1,11 @@
-import json
 import random
-from pathlib import Path
 
 import pytest
 
 from lesion_lab.lesions import _splitmix64
 from lesion_lab.recipe import MODES, TARGETS, LesionRecipe
+from workflow_helpers import assert_links_consistent, load_workflow, only, smoke_inputs
 
-ROOT = Path(__file__).resolve().parents[1]
-RANDOM_WORKFLOW = ROOT / "workflows" / "krea2-lesion-random.json"
-SMOKE_WORKFLOW = ROOT / "workflows" / "krea2-lesion-smoke.json"
 EASY_SEED_MAX = 1125899906842624  # comfyui-easy-use py/config.py MAX_SEED_NUM
 DRIVEN_INPUTS = [
     "mode", "strength", "probability", "target",
@@ -18,18 +14,7 @@ DRIVEN_INPUTS = [
 
 
 def load():
-    return json.loads(RANDOM_WORKFLOW.read_text())
-
-
-def only(workflow, key, value):
-    found = [n for n in workflow["nodes"] if n.get(key) == value]
-    assert len(found) == 1, f"expected exactly one node with {key}={value!r}, found {len(found)}"
-    return found[0]
-
-
-def smoke_inputs(class_type):
-    smoke = json.loads(SMOKE_WORKFLOW.read_text())
-    return next(node for node in smoke.values() if node["class_type"] == class_type)["inputs"]
+    return load_workflow("krea2-lesion-random.json")
 
 
 class Graph:
@@ -88,21 +73,7 @@ def math_node(comfy_root):
 
 
 def test_links_are_consistent_in_both_directions():
-    workflow = load()
-    nodes = {n["id"]: n for n in workflow["nodes"]}
-    link_ids = set()
-    for link_id, origin, origin_slot, target, target_slot, _type in workflow["links"]:
-        assert link_id not in link_ids
-        link_ids.add(link_id)
-        assert link_id in (nodes[origin]["outputs"][origin_slot]["links"] or [])
-        assert nodes[target]["inputs"][target_slot]["link"] == link_id
-    for node in workflow["nodes"]:
-        for slot in node.get("inputs", []):
-            assert slot.get("link") is None or slot["link"] in link_ids
-        for slot in node.get("outputs", []):
-            assert set(slot.get("links") or []) <= link_ids
-    assert workflow["last_link_id"] == max(link_ids)
-    assert workflow["last_node_id"] == max(nodes)
+    assert_links_consistent(load())
 
 
 def test_every_lesion_input_except_enabled_is_driven():
