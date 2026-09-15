@@ -42,7 +42,12 @@ def select_channels(recipe: LesionRecipe, block: int, family: str, step: int, wi
 
 def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
                  txt: int, n_img: int, *, shape=None, grid=None, n_steps=None, n_blocks=None) -> torch.Tensor:
-    """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``."""
+    """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``.
+
+    The four-mode dispatch (dropout/amplify/sign_flip/noise) below is intentionally duplicated in
+    ``_apply_shaped`` rather than shared, so the unshaped path here stays bit-identical to the base
+    spec's implementation regardless of how the shaped path changes.
+    """
     if shape is not None:
         return _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_steps, n_blocks)
     selected = select_channels(recipe, block, family, step, out.shape[-1]).to(out.device)
@@ -78,6 +83,10 @@ def _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_s
     scalar = shape.step_multiplier(step, n_steps) * shape.block_multiplier(block, n_blocks)
     mask = shape.token_mask(step, n_steps, h, w, out.device)
     if scalar == 0.0 and mask is None:
+        # Returning `out` by reference (not a clone) is deliberate: the only caller is the
+        # forward hook, which passes this return value straight back as the module's output.
+        # Nothing below this branch writes to `out` in place, unlike the base path above, which
+        # clones because it does.
         return out
 
     selected = select_channels(recipe, block, family, step, out.shape[-1]).to(out.device)

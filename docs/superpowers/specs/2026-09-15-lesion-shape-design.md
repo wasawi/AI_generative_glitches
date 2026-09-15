@@ -153,7 +153,10 @@ generator as the base spec (`purpose = 1`), so results are deterministic per see
    divide each channel by its RMS over tokens when that RMS is > 0 (all-zero channels stay zero).
 3. Return `v.reshape(k, n_img).T` — the same `[n_img, k]` layout the base spec broadcasts over the batch.
 
-All distributions except `cauchy` have RMS 1 in expectation, so strength means the same across them.
+At `noise_scale` 1 (step 2 skipped), all distributions except `cauchy` have RMS 1 in expectation, so
+strength means the same across them. At `noise_scale > 1`, step 2's per-channel renormalization makes
+every distribution — `cauchy` included — unit-RMS, and can leave an all-zero `spikes` channel empty
+(RMS 0, left unrescaled by design) rather than renormalized.
 
 ## Runtime changes
 

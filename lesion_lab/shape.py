@@ -109,6 +109,10 @@ class LesionShape:
             frame = min(frames - 1, math.floor(step * (frames - 1) / (n_steps - 1) + 0.5))
         key = (frame, h, w, str(device))
         if key not in self._mask_cache:
+            # Unbounded by design: entries accumulate for every distinct (frame, h, w, device)
+            # seen, bounded in practice only by (frames × grids × devices). A many-frame mask
+            # (KJNodes allows up to 4096) can therefore pin a resized copy per frame in memory
+            # until this shape node re-executes and a fresh LesionShape (and cache) is built.
             resized = F.interpolate(
                 self.spatial_mask[frame][None, None], size=(h, w), mode="bilinear", align_corners=False, antialias=True
             )

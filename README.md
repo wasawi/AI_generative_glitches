@@ -108,7 +108,9 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 - To change a range, edit the expression in the matching node: `2.0` and `1.0` in `strength`, `0.05` in
   `strength`/`probability`, `% 28` in the block nodes. The step nodes use `& 7` (0–7); for a different KSampler
   step count `N`, use `min(((a >> 46) & 255) % N, ((a >> 54) & 255) % N)` in `step_start` and the same with
-  `max` in `step_end`.
+  `max` in `step_end` — this also widens each field from 3 bits to 8, which is why the second shift moves
+  from 49 to 54 (bits 46–53 and 54–61 are otherwise unused; do not use `(a >> 49) & 255`, since bits 49–56
+  would overlap the first field and correlate the two draws).
 
 ## Shaping the lesion
 
@@ -119,12 +121,15 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 |---|---|
 | `distribution` | Noise values: `gaussian`, `uniform`, `laplace` (occasional large values), `cauchy` (rare huge spikes, clipped at ±20), `spikes` (most values 0, a few big ones), `binary` (±1). Noise mode only |
 | `spike_density` | Fraction of values that spike with `spikes` |
-| `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain … up to 64 = very large blobs. Noise mode only |
+| `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain … up to 64 = very large blobs; at the maximum, the coarse grid can collapse to a single cell (at 1024×1024, a 64×64 token grid, `noise_scale` 64 gives each channel one constant value across the whole image — a per-channel offset rather than noise). Noise mode only |
 | `step_curve` | Strength multiplier across sampling steps (every mode) |
 | `block_curve` | Strength multiplier across the 28 blocks (every mode) |
 | `spatial_mask` | Strength multiplier over the picture (every mode): white = full lesion, black = untouched |
 
-All noise distributions except `cauchy` have the same average size, so `strength` means the same across them.
+At `noise_scale` 1 every distribution except `cauchy` has the same average size, so `strength` means the
+same across them. At `noise_scale` above 1 the field is rescaled per channel, which brings `cauchy` to
+that size too; with `spikes` and a large blob size on a small image, some channels can come out empty and
+add nothing.
 
 **Curves.** Any node with a `FLOAT` value or list output works, for example KJNodes **Spline Editor**
 (add it with a double-click search, then connect its `float` output). For one control point per sampling
@@ -133,7 +138,9 @@ and connect it to `step_curve`; for one control point per Krea2 block, set `poin
 connect it to `block_curve`. A curve is always stretched over the whole run regardless of that count: its
 first point is step 0 (or block 0), its last point the final step (or block 27), with straight lines in
 between, whatever `points_to_sample` is — so any other length still works. Values above 1 boost the
-lesion; negative values reverse it. The lesion node's step and block windows still limit where it acts,
+lesion; negative values reverse it. KJNodes' Spline Editor defaults its own `min_value`/`max_value` to
+0/1, so raise `max_value` above 1 to boost or lower `min_value` below 0 to reverse. The lesion node's
+step and block windows still limit where it acts,
 so open them fully (`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve
 do the shaping.
 
