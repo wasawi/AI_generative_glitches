@@ -21,7 +21,7 @@ MISSING_SIGMAS = (
 )
 
 
-def image_token_count(x: torch.Tensor, patch: int) -> int:
+def image_token_grid(x: torch.Tensor, patch: int) -> tuple[int, int]:
     # comfy/sample.py:58-59 unsqueezes a 4-D image latent to 5-D [B, C, 1, H, W] whenever
     # the model's latent_format reports latent_dimensions == 3 (Krea2 uses Wan21, which does),
     # so real Krea2 latents arrive 5-D with T == 1. SingleStreamDiT._forward flattens T into
@@ -34,10 +34,15 @@ def image_token_count(x: torch.Tensor, patch: int) -> int:
             )
     elif x.ndim != 4:
         raise ValueError(f"Lesion Model (Krea2) supports image latents [B, C, H, W] only; got {x.ndim}-D input")
-    return math.ceil(x.shape[-2] / patch) * math.ceil(x.shape[-1] / patch)
+    return math.ceil(x.shape[-2] / patch), math.ceil(x.shape[-1] / patch)
 
 
-def _make_hook(recipe: LesionRecipe, block: int, family: str, step: int, txt: int, n_img: int):
+def image_token_count(x: torch.Tensor, patch: int) -> int:
+    h, w = image_token_grid(x, patch)
+    return h * w
+
+
+def _make_hook(recipe: LesionRecipe, block: int, family: str, step: int, txt: int, n_img: int, shaping: dict):
     def hook(module, args, output):
         if not isinstance(output, torch.Tensor) or output.ndim != 3 or output.shape[1] < txt + n_img:
             got = tuple(output.shape) if isinstance(output, torch.Tensor) else type(output).__name__
@@ -45,14 +50,15 @@ def _make_hook(recipe: LesionRecipe, block: int, family: str, step: int, txt: in
                 f"Lesion Model (Krea2): unexpected {family} output at block {block}: "
                 f"expected [B, >= {txt + n_img}, D], got {got}"
             )
-        return apply_lesion(output, recipe, block, family, step, txt, n_img)
+        return apply_lesion(output, recipe, block, family, step, txt, n_img, **shaping)
 
     return hook
 
 
 class LesionWrapper:
-    def __init__(self, recipe: LesionRecipe):
+    def __init__(self, recipe: LesionRecipe, shape=None):
         self.recipe = recipe
+        self.shape = shape
 
     def __call__(self, executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs):
         if "sigmas" not in transformer_options or "sample_sigmas" not in transformer_options:
@@ -62,14 +68,23 @@ class LesionWrapper:
             return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
 
         dit = executor.class_obj
-        n_img = image_token_count(x, dit.patch)
+        grid = image_token_grid(x, dit.patch)
+        n_img = grid[0] * grid[1]
         txt = context.shape[1]
+        shaping = {}
+        if self.shape is not None:
+            shaping = {
+                "shape": self.shape,
+                "grid": grid,
+                "n_steps": torch.as_tensor(transformer_options["sample_sigmas"]).numel() - 1,
+                "n_blocks": len(dit.blocks),
+            }
         handles = []
         try:
             for block in self.recipe.blocks:
                 modules = {"attention": dit.blocks[block].attn, "mlp": dit.blocks[block].mlp}
                 for family in self.recipe.families:
-                    hook = _make_hook(self.recipe, block, family, step, txt, n_img)
+                    hook = _make_hook(self.recipe, block, family, step, txt, n_img, shaping)
                     handles.append(modules[family].register_forward_hook(hook))
             return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
         finally:

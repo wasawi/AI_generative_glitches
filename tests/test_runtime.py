@@ -129,3 +129,26 @@ def test_activation_shorter_than_image_slice_is_a_clear_error():
     with pytest.raises(RuntimeError, match="unexpected attention output at block 0"):
         call(LesionWrapper(recipe()), executor, sigma=0.5)
     assert hook_counts(executor.class_obj) == [0, 0]
+
+
+def test_image_token_grid_returns_height_and_width():
+    from lesion_lab.runtime import image_token_grid
+
+    assert image_token_grid(torch.zeros(1, 4, 5, 6), 2) == (3, 3)
+    assert image_token_grid(torch.zeros(1, 4, 1, 5, 6), 2) == (3, 3)
+
+
+def test_wrapper_passes_shape_grid_step_and_block_counts(monkeypatch):
+    import lesion_lab.runtime as runtime
+    from lesion_lab.shape import LesionShape
+
+    seen = []
+
+    def spy(output, recipe_, block, family, step, txt, n_img, **kwargs):
+        seen.append((block, family, step, txt, n_img, kwargs))
+        return output
+
+    monkeypatch.setattr(runtime, "apply_lesion", spy)
+    s = LesionShape.build("gaussian", 0.05, 1)
+    call(LesionWrapper(recipe(target="mlp", block_start=1, block_end=1), s), FakeExecutor(FakeDiT()), sigma=0.5)
+    assert seen == [(1, "mlp", 1, TXT, 6, {"shape": s, "grid": (2, 3), "n_steps": 2, "n_blocks": 2})]

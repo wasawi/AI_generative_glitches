@@ -41,8 +41,10 @@ def select_channels(recipe: LesionRecipe, block: int, family: str, step: int, wi
 
 
 def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
-                 txt: int, n_img: int) -> torch.Tensor:
+                 txt: int, n_img: int, *, shape=None, grid=None, n_steps=None, n_blocks=None) -> torch.Tensor:
     """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``."""
+    if shape is not None:
+        return _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_steps, n_blocks)
     selected = select_channels(recipe, block, family, step, out.shape[-1]).to(out.device)
     rows = slice(txt, txt + n_img)
     region = out[:, rows, :]
@@ -61,6 +63,45 @@ def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: st
         generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
         noise = torch.randn((n_img, selected.numel()), generator=generator, device=out.device, dtype=torch.float32)
         lesioned = values.float() + strength * rms * noise
+    else:
+        raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
+
+    result = out.clone()
+    result[:, rows, :].index_copy_(2, selected, lesioned.to(out.dtype))
+    return result
+
+
+def _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_steps, n_blocks):
+    h, w = grid
+    if h * w != n_img:
+        raise ValueError(f"grid {h}x{w} does not match {n_img} image tokens")
+    scalar = shape.step_multiplier(step, n_steps) * shape.block_multiplier(block, n_blocks)
+    mask = shape.token_mask(step, n_steps, h, w, out.device)
+    if scalar == 0.0 and mask is None:
+        return out
+
+    selected = select_channels(recipe, block, family, step, out.shape[-1]).to(out.device)
+    rows = slice(txt, txt + n_img)
+    region = out[:, rows, :]
+    values = region.index_select(-1, selected).float()
+    if mask is None:
+        multiplier = torch.full((1, n_img, 1), scalar, dtype=torch.float32, device=out.device)
+    else:
+        multiplier = mask * scalar
+    dose = recipe.strength * multiplier
+
+    if recipe.mode == "dropout":
+        lesioned = values * (1.0 - dose)
+    elif recipe.mode == "amplify":
+        lesioned = values * (1.0 + dose)
+    elif recipe.mode == "sign_flip":
+        lesioned = values * (1.0 - 2.0 * dose)
+    elif recipe.mode == "noise":
+        rms = torch.linalg.vector_norm(region, dim=-1, keepdim=True, dtype=torch.float32) / math.sqrt(region.shape[-1])
+        generator = torch.Generator(device=out.device)
+        generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
+        noise = shape.draw_noise(selected.numel(), h, w, generator, out.device)
+        lesioned = values + dose * rms * noise
     else:
         raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
 
