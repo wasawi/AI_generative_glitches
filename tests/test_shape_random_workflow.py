@@ -147,7 +147,7 @@ def test_every_master_seed_yields_valid_lesion_shape_and_mask_settings(math_node
         lesion = graph.linked_inputs("LesionModelKrea2", LESION_DRIVEN)
         recipe = LesionRecipe.build(enabled=True, **lesion)
         assert recipe.noop_reason() is None
-        assert 0.05 <= recipe.strength <= (1.0 if recipe.mode in ("dropout", "sign_flip") else 2.0), (seed, recipe)
+        assert 0.05 <= abs(recipe.strength) <= (2.0 if recipe.mode in ("dropout", "sign_flip") else 4.0), (seed, recipe)
         assert 0.05 <= recipe.probability <= 1.0
         assert recipe.block_end <= 27 and recipe.step_end <= 7
         assert lesion["lesion_seed"] == seed

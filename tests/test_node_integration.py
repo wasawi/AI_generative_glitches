@@ -108,9 +108,12 @@ def test_rejects_non_krea2_model(comfy, node):
         apply(node, make_patcher(comfy, torch.nn.Linear(2, 2)))
 
 
-def test_block_end_beyond_the_model_is_rejected(node, patcher):
-    with pytest.raises(ValueError, match="block_end 2 exceeds last block 1"):
-        apply(node, patcher, block_end=2)
+def test_block_end_beyond_the_model_is_clamped_not_rejected(node, patcher):
+    # the tiny test model has 2 blocks; a larger block_end used to raise and abort the run
+    clone, recipe = apply(node, patcher, block_end=27)
+    assert "blocks=0-1" in recipe and "sites=4" in recipe
+    assert not torch.equal(run(patcher, 0.75), run(clone, 0.75))
+    assert hook_count(clone) == 0
 
 
 def test_clone_carries_the_wrapper_and_source_stays_clean(comfy, node, patcher):

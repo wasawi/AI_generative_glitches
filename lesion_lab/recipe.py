@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 MODES = ("dropout", "amplify", "sign_flip", "noise")
 TARGETS = ("attention", "mlp", "both")
 FAMILIES = ("attention", "mlp")
-STRENGTH_MAX = 1000.0
+STRENGTH_WIDGET_LIMIT = 1_000_000.0  # widget bound only; any finite strength is valid
 SEED_MAX = 2**63 - 1
 
 
@@ -62,8 +62,6 @@ class LesionRecipe:
         if target not in TARGETS:
             raise ValueError(f"target must be one of {', '.join(TARGETS)}; got {target!r}")
         strength_value = _finite_float("strength", strength)
-        if not 0.0 <= strength_value <= STRENGTH_MAX:
-            raise ValueError(f"strength must be between 0 and {STRENGTH_MAX:g}; got {strength_value:g}")
         probability_value = _finite_float("probability", probability)
         if not 0.0 <= probability_value <= 1.0:
             raise ValueError(f"probability must be between 0 and 1; got {probability_value:g}")
@@ -109,6 +107,15 @@ class LesionRecipe:
         return body if reason is None else f"no-op ({reason}) | {body}"
 
 
-def validate_against_model(recipe: LesionRecipe, n_blocks: int) -> None:
-    if recipe.block_end > n_blocks - 1:
-        raise ValueError(f"block_end {recipe.block_end} exceeds last block {n_blocks - 1}")
+def clamp_to_model(recipe: LesionRecipe, n_blocks: int) -> LesionRecipe:
+    """Return ``recipe`` with its block range clamped to the model's blocks.
+
+    Clamping rather than raising: a block_end past the last block (from a widget, a randomizer
+    or a shorter model) must never abort a generation. The recipe string then shows the range
+    actually used.
+    """
+    last = n_blocks - 1
+    start, end = min(recipe.block_start, last), min(recipe.block_end, last)
+    if (start, end) == (recipe.block_start, recipe.block_end):
+        return recipe
+    return replace(recipe, block_start=start, block_end=end)

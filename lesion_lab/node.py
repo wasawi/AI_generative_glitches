@@ -5,7 +5,7 @@ from __future__ import annotations
 import comfy.patcher_extension
 from comfy.ldm.krea2.model import SingleStreamDiT
 
-from .recipe import MODES, SEED_MAX, STRENGTH_MAX, TARGETS, LesionRecipe, validate_against_model
+from .recipe import MODES, SEED_MAX, STRENGTH_WIDGET_LIMIT, TARGETS, LesionRecipe, clamp_to_model
 from .runtime import LesionWrapper
 from .shape import DISTRIBUTIONS, NOISE_SCALE_MAX, LesionShape
 
@@ -29,11 +29,11 @@ class LesionModelKrea2:
                 "model": ("MODEL",),
                 "enabled": ("BOOLEAN", {"default": True}),
                 "mode": (list(MODES), {"default": "noise"}),
-                "strength": ("FLOAT", {"default": 0.15, "min": 0.0, "max": STRENGTH_MAX, "step": 0.01}),
-                "probability": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 1.0, "step": 0.01}),
+                "strength": ("FLOAT", {"default": 0.15, "min": -STRENGTH_WIDGET_LIMIT, "max": STRENGTH_WIDGET_LIMIT, "step": 0.01}),
+                "probability": ("FLOAT", {"default": 0.25, "min": 0.0, "max": 1.0, "step": 0.0001, "round": 0.0001}),
                 "target": (list(TARGETS), {"default": "both"}),
-                "block_start": ("INT", {"default": 0, "min": 0, "max": 999}),
-                "block_end": ("INT", {"default": 27, "min": 0, "max": 999}),
+                "block_start": ("INT", {"default": 0, "min": 0, "max": 27}),
+                "block_end": ("INT", {"default": 27, "min": 0, "max": 27}),
                 "step_start": ("INT", {"default": 0, "min": 0, "max": 10000}),
                 "step_end": ("INT", {"default": 999, "min": 0, "max": 10000}),
                 "lesion_seed": ("INT", {"default": 0, "min": 0, "max": SEED_MAX}),
@@ -55,7 +55,7 @@ class LesionModelKrea2:
             block_start=block_start, block_end=block_end, step_start=step_start, step_end=step_end,
             lesion_seed=lesion_seed,
         )
-        validate_against_model(recipe, n_blocks=len(diffusion_model.blocks))
+        recipe = clamp_to_model(recipe, n_blocks=len(diffusion_model.blocks))
         if shape is not None and not isinstance(shape, LesionShape):
             raise TypeError("shape must come from a Lesion Shape (Krea2) node")
         clone = model.clone()

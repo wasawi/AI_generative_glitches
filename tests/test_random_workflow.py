@@ -125,21 +125,24 @@ def test_every_master_seed_yields_a_valid_active_recipe_covering_all_choices(mat
     seeds = [0, 1, EASY_SEED_MAX] + [rng.randrange(EASY_SEED_MAX + 1) for _ in range(20000)]
     seen = {name: set() for name in ("mode", "target", "block_start", "block_end", "step_start", "step_end")}
     top_strength = {mode: 0.0 for mode in MODES}
+    strengths = []
     for seed in seeds:
         values = Graph(workflow, math_node, seed).lesion_inputs()
         assert values["lesion_seed"] == seed
         recipe = LesionRecipe.build(enabled=True, **values)
         assert recipe.noop_reason() is None
-        cap = 1.0 if recipe.mode in ("dropout", "sign_flip") else 2.0
-        assert 0.05 <= recipe.strength <= cap, (seed, recipe)
+        cap = 2.0 if recipe.mode in ("dropout", "sign_flip") else 4.0
+        assert 0.05 <= abs(recipe.strength) <= cap, (seed, recipe)  # signed draw
         assert 0.05 <= recipe.probability <= 1.0, (seed, recipe)
         assert recipe.block_end <= 27 and recipe.step_end <= 7, (seed, recipe)
-        top_strength[recipe.mode] = max(top_strength[recipe.mode], recipe.strength)
+        top_strength[recipe.mode] = max(top_strength[recipe.mode], abs(recipe.strength))
+        strengths.append(recipe.strength)
         for name in seen:
             seen[name].add(getattr(recipe, name))
     assert seen["mode"] == set(MODES)
     assert seen["target"] == set(TARGETS)
     assert seen["block_start"] == seen["block_end"] == set(range(28))
     assert seen["step_start"] == seen["step_end"] == set(range(8))
-    assert top_strength["amplify"] > 1.9 and top_strength["noise"] > 1.9
-    assert top_strength["dropout"] > 0.95 and top_strength["sign_flip"] > 0.95
+    assert top_strength["amplify"] > 3.9 and top_strength["noise"] > 3.9
+    assert top_strength["dropout"] > 1.9 and top_strength["sign_flip"] > 1.9
+    assert min(strengths) < 0 < max(strengths), "the signed draw must produce both signs"

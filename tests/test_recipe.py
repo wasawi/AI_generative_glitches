@@ -1,6 +1,6 @@
 import pytest
 
-from lesion_lab.recipe import LesionRecipe, validate_against_model
+from lesion_lab.recipe import LesionRecipe, clamp_to_model
 
 DEFAULTS = dict(
     enabled=True, mode="noise", strength=0.15, probability=0.25, target="both",
@@ -49,11 +49,14 @@ def test_noop_reasons(overrides, reason):
 
 
 @pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip", "noise"])
-def test_every_mode_accepts_strength_up_to_1000(mode):
+def test_strength_accepts_any_finite_value_including_negatives(mode):
     assert build(mode=mode, strength=2.0).strength == 2.0
-    assert build(mode=mode, strength=1000).strength == 1000
-    with pytest.raises(ValueError, match="strength must be between 0 and 1000; got 1000.01"):
-        build(mode=mode, strength=1000.01)
+    assert build(mode=mode, strength=250000.0).strength == 250000.0
+    assert build(mode=mode, strength=-3.5).strength == -3.5
+    assert build(mode=mode, strength=-0.001).noop_reason() is None
+    for bad in (float("nan"), float("inf"), float("-inf")):
+        with pytest.raises(ValueError, match="strength must be a finite number"):
+            build(mode=mode, strength=bad)
 
 
 @pytest.mark.parametrize(
@@ -62,7 +65,6 @@ def test_every_mode_accepts_strength_up_to_1000(mode):
         ({"mode": "scale"}, "mode must be one of dropout, amplify, sign_flip, noise; got 'scale'"),
         ({"target": "ff"}, "target must be one of attention, mlp, both; got 'ff'"),
         ({"strength": float("nan")}, "strength must be a finite number"),
-        ({"strength": -0.1}, "strength must be between 0 and 1000; got -0.1"),
         ({"probability": 1.5}, "probability must be between 0 and 1"),
         ({"probability": "x"}, "probability must be a finite number"),
         ({"block_start": -1}, "block_start must be >= 0"),
@@ -77,7 +79,12 @@ def test_validation_messages(overrides, message):
         build(**overrides)
 
 
-def test_validate_against_model():
-    validate_against_model(build(block_end=27), n_blocks=28)
-    with pytest.raises(ValueError, match="block_end 28 exceeds last block 27"):
-        validate_against_model(build(block_end=28), n_blocks=28)
+def test_block_range_is_clamped_to_the_model_never_raising():
+    # a too-high block_end used to abort the generation; it now clamps to the model
+    clamped = clamp_to_model(build(block_start=5, block_end=999), n_blocks=28)
+    assert (clamped.block_start, clamped.block_end) == (5, 27)
+    both = clamp_to_model(build(block_start=40, block_end=60), n_blocks=28)
+    assert (both.block_start, both.block_end) == (27, 27)
+    inside = build(block_start=2, block_end=27)
+    assert clamp_to_model(inside, n_blocks=28) is inside
+    assert clamp_to_model(build(block_end=3), n_blocks=2).block_end == 1

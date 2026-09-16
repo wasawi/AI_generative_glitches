@@ -33,10 +33,10 @@ your image metadata.
 |---|---|
 | `enabled` | Off = unmodified model |
 | `mode` | `dropout`, `amplify`, `sign_flip` or `noise` (below) |
-| `strength` | Dose, 0–1000. 0 is always no change |
-| `probability` | Fraction of the hidden channels hit at each site (at least one channel when > 0) |
+| `strength` | Dose. Any finite value, negative included: a negative dose runs the formula backwards (negative `dropout` amplifies, negative `amplify` attenuates and inverts). 0 is always no change |
+| `probability` | Fraction of the 6144 hidden channels hit at each site (at least one when > 0, so 0.0002 ≈ a single channel). Step 0.0001 |
 | `target` | Lesion the output of `attention`, `mlp` or `both` in each block |
-| `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive |
+| `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive. A value past the model's last block is clamped, never an error |
 | `step_start`, `step_end` | Which sampling steps, inclusive; step 0 is the first step KSampler runs |
 | `lesion_seed` | Picks the channels and the noise. Same seed + same settings = same lesion. Keep it fixed while comparing runs; change it deliberately to get a different lesion pattern |
 
@@ -47,10 +47,10 @@ At each site and step, the same randomly chosen channels are hit for every image
 
 | Mode | Selected channels become | `strength` range |
 |---|---|---|
-| `dropout` | `x × (1 − s)` (1 = silenced, 2 = negated, 5 = −4x) | 0–1000 |
-| `amplify` | `x × (1 + s)` | 0–1000 |
-| `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated, 1.5 = −2x) | 0–1000 |
-| `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | 0–1000 |
+| `dropout` | `x × (1 − s)` (1 = silenced, 2 = negated, 5 = −4x, −1 = doubled) | any finite |
+| `amplify` | `x × (1 + s)` (−2 = inverted) | any finite |
+| `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated, 1.5 = −2x, −1 = tripled) | any finite |
+| `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | any finite |
 
 Steps: with 8 sampling steps, `step_start=0, step_end=3` lesions the first half, where composition is
 decided; later steps mostly affect detail and texture. With `denoise < 1` or KSampler Advanced
@@ -92,7 +92,7 @@ that is always valid:
 |---|---|
 | `mode` | dropout, amplify, sign_flip, noise |
 | `target` | attention, mlp, both |
-| `strength` | 0.05–1.0 for dropout and sign_flip, 0.05–2.0 for amplify and noise |
+| `strength` | signed: magnitude 0.05–2.0 for dropout and sign_flip, 0.05–4.0 for amplify and noise, either sign |
 | `probability` | 0.05–1.0 |
 | `block_start`, `block_end` | two draws in 0–27, lower one is the start |
 | `step_start`, `step_end` | two draws in 0–7 (the 8 KSampler steps), lower one is the start |
@@ -164,7 +164,7 @@ KSampler seed stay manual, and `step_curve`/`block_curve` stay free for a Spline
 | Input | Random range |
 |---|---|
 | `mode`, `target` | all four modes / all three targets |
-| `strength` | 0.05–1.0 for dropout and sign_flip, 0.05–2.0 for amplify and noise |
+| `strength` | signed: magnitude 0.05–2.0 for dropout and sign_flip, 0.05–4.0 for amplify and noise, either sign |
 | `probability` | 0.05–1.0 |
 | blocks, steps | two draws each (0–27, 0–7), lower one is the start |
 | `distribution` | all six |

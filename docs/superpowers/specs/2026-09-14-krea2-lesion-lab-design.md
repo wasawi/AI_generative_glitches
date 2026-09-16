@@ -61,11 +61,11 @@ Wiring: `Load Diffusion Model` or `Unet Loader (GGUF)` → `Lesion Model (Krea2)
 | `model` | MODEL | — | — | Krea2 model |
 | `enabled` | BOOLEAN | `True` | — | `False` returns an unmodified clone |
 | `mode` | combo | `noise` | `dropout`, `amplify`, `sign_flip`, `noise` | Lesion type |
-| `strength` | FLOAT | `0.15` | 0–1000, step 0.01 | Dose; `0` is always a no-op |
-| `probability` | FLOAT | `0.25` | 0–1, step 0.01 | Fraction of hidden channels hit per site |
+| `strength` | FLOAT | `0.15` | any finite value, step 0.01 (widget bounds ±1,000,000) | Dose, sign included; `0` is always a no-op |
+| `probability` | FLOAT | `0.25` | 0–1, step 0.0001 | Fraction of hidden channels hit per site |
 | `target` | combo | `both` | `attention`, `mlp`, `both` | Which sub-module outputs |
-| `block_start` | INT | `0` | 0–999 | First block, inclusive |
-| `block_end` | INT | `27` | 0–999 | Last block, inclusive; must be ≤ last block index |
+| `block_start` | INT | `0` | 0–27 | First block, inclusive; clamped to the model |
+| `block_end` | INT | `27` | 0–27 | Last block, inclusive; clamped to the model, never an error |
 | `step_start` | INT | `0` | 0–10000 | First sampling step, inclusive |
 | `step_end` | INT | `999` | 0–10000 | Last sampling step, inclusive |
 | `lesion_seed` | INT | `0` | 0–2^63−1 | Seed for channel selection and noise |
@@ -109,10 +109,10 @@ strength `s`:
 
 | Mode | Replacement | Allowed `s` |
 |---|---|---|
-| `dropout` | `a × (1 − s)` | 0–1000 (1 = silenced, 2 = negated) |
-| `amplify` | `a × (1 + s)` | 0–1000 |
-| `sign_flip` | `a × (1 − 2s)` | 0–1000 (0.5 = zeroed, 1 = negated, 1.5 = −2x) |
-| `noise` | `a + s × rms × n` | 0–1000 |
+| `dropout` | `a × (1 − s)` | any finite (1 = silenced, 2 = negated, −1 = doubled) |
+| `amplify` | `a × (1 + s)` | any finite (−2 = inverted) |
+| `sign_flip` | `a × (1 − 2s)` | any finite (0.5 = zeroed, 1 = negated, −1 = tripled) |
+| `noise` | `a + s × rms × n` | any finite |
 
 For `noise`: `rms` is each token's root-mean-square over all `D` channels of
 the original output (shape `[B, n_img, 1]`), computed in float32. `n` is a
@@ -229,7 +229,7 @@ PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/
 ```
 
 **Unit tests (no ComfyUI):**
-- recipe: defaults, every validation message, strength limit 0–1000 for every mode, no-op reasons, `describe()` format.
+- recipe: defaults, every validation message, strength accepting any finite value (negatives included), block-range clamping to the model, no-op reasons, `describe()` format.
 - lesions: each mode's formula on known values; exactly `k` channels changed; determinism; different step/block/family/seed → different selection; per-item identical result for batch 1 vs 2; text/reference rows and unselected channels unchanged; input not mutated; dtype preserved (float16/bfloat16).
 - steps: exact schedule points, in-between sigmas, final step, sigma above `sample_sigmas[0]`, shortened schedules.
 

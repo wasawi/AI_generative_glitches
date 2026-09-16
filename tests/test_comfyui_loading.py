@@ -29,7 +29,9 @@ def test_package_imports_the_way_comfyui_loads_custom_nodes(comfy_root):
         assert required["mode"][0] == ["dropout", "amplify", "sign_flip", "noise"]
         assert required["mode"][1]["default"] == "noise"
         assert required["lesion_seed"][1]["max"] == 2**63 - 1
-        assert required["strength"][1]["max"] == 1000.0
+        assert required["strength"][1]["min"] < 0 and required["strength"][1]["max"] >= 1_000_000
+        assert required["probability"][1]["step"] <= 0.0001
+        assert required["block_start"][1]["max"] == 27 and required["block_end"][1]["max"] == 27
         assert node_class.INPUT_TYPES()["optional"] == {"shape": ("LESION_SHAPE",)}
         shape_class = module.NODE_CLASS_MAPPINGS["LesionShapeKrea2"]
         assert module.NODE_DISPLAY_NAME_MAPPINGS["LesionShapeKrea2"] == "Lesion Shape (Krea2)"
