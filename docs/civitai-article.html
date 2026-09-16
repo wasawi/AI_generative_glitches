@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>I broke the model on purpose and it drew me a bicycle anyway</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    font-size: 17px;
+    line-height: 1.7;
+    max-width: 44rem;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+    color: #1a1a1a;
+    background: #ffffff;
+  }
+  h1 { font-size: 2.1em; line-height: 1.15; margin: 0 0 24px; }
+  h2 { font-size: 1.5em; line-height: 1.25; margin: 8px 0 16px; }
+  h3 { font-size: 1.15em; line-height: 1.35; margin: 30px 0 10px; }
+  p { margin: 0 0 18px; }
+  hr { border: 0; border-top: 1px solid #d8d8d8; margin: 40px 0 30px; }
+  blockquote {
+    margin: 0 0 20px;
+    padding: 10px 0 10px 18px;
+    border-left: 4px solid #c8102e;
+    font-style: italic;
+    color: #444;
+  }
+  pre {
+    background: #f4f4f4;
+    padding: 14px 16px;
+    margin: 0 0 20px;
+    overflow-x: auto;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.85em;
+    line-height: 1.7;
+  }
+  code {
+    background: #f4f4f4;
+    padding: 1px 5px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.88em;
+  }
+  ul { padding-left: 1.4em; margin: 0 0 20px; }
+  li { margin-bottom: 10px; }
+  a { color: #c8102e; }
+  @media (prefers-color-scheme: dark) {
+    body { color: #e8e8e8; background: #17171a; }
+    pre, code { background: #242428; }
+    hr { border-top-color: #35353a; }
+    blockquote { color: #b0b0b0; }
+    a { color: #ff5566; }
+  }
+</style>
+</head>
+<body>
+
+<h1>🚲 I broke the model on purpose and it drew me a bicycle anyway</h1>
+
+<p>Every image in this post came from the same prompt, the same model, and the same seed:</p>
+
+<blockquote>a photograph of a red bicycle leaning against a white brick wall, soft morning daylight, sharp focus</blockquote>
+
+<p>Seed <code>123456789</code>. Eight steps. <strong>Never changed.</strong> Not once, not for a single image.</p>
+
+<p>So why does each one look like a different universe had a go at the same bicycle? 🤔</p>
+
+<p>Because I put a node between the sampler and the model that <strong>damages the model's thinking while it draws</strong> — and the only thing I changed between images is the seed for that damage.</p>
+
+<p>No LoRA. No img2img. No filters. <em>Nothing was done to the picture afterwards.</em> It came out like that.</p>
+
+<hr>
+
+<h2>What does it do?</h2>
+
+<p>It reaches inside the model while it's generating and corrupts its own internal numbers.</p>
+
+<p><strong>Your checkpoint is never touched.</strong> Nothing is written to disk, nothing is modified, nothing is permanent. Delete the node and the model is exactly as it was. 🔒</p>
+
+<h3>It works with</h3>
+
+<ul>
+  <li>🎛️ <strong>Four damage modes:</strong> <code>dropout</code>, <code>amplify</code>, <code>sign_flip</code>, <code>noise</code></li>
+  <li>🎨 <strong>Six noise flavours:</strong> gaussian, uniform, laplace, cauchy, spikes, binary</li>
+  <li>🖼️ <strong>Any mask</strong> — glitch only part of the picture</li>
+  <li>📈 <strong>Curves</strong> — ramp the damage across the steps, or across the model's 28 blocks</li>
+  <li>🎲 <strong>A randomizer workflow</strong> that invents a new recipe every time you hit Queue</li>
+  <li>🧩 <strong>Krea2 models</strong>, GGUF or safetensors</li>
+</ul>
+
+<hr>
+
+<h2>The settings behind these images</h2>
+
+<p>Here it is, the whole thing, nothing hidden:</p>
+
+<pre>mode          noise
+strength      5.0
+probability   0.25
+target        both
+blocks        0 → 27
+steps         0 → 2
+distribution  binary
+noise_scale   4
+mask          512×512 square (or circle), centred</pre>
+
+<p><strong>Model:</strong> museByStableYogi_v25 (Krea2 GGUF)<br>
+<strong>Sampler:</strong> er_sde / simple, 8 steps, CFG 1.0, 1664×1248, batches of 4</p>
+
+<hr>
+
+<h2>How does it work? (the simple version)</h2>
+
+<p>A diffusion model doesn't paint. <em>It thinks in numbers, and the picture is a side effect.</em></p>
+
+<p>Krea2 cuts your canvas into 16×16 pixel patches called <strong>tokens</strong>. Each token gets about <strong>6,144 numbers</strong> describing what the model believes about that patch: is it metal, is it shadowed, is it part of a wheel, is it in focus. Those numbers pass through <strong>28 blocks</strong>, each one nudging them closer to a real image. Do that eight times and you get a bicycle. 🚲</p>
+
+<p>The node steps into the middle of that and scrambles some of the numbers.</p>
+
+<p>With the settings above: at each of the 28 blocks, it picks a quarter of the 6,144 channels — about <strong>1,500 of them</strong> — and adds noise <strong>five times louder</strong> than the patch's own signal.</p>
+
+<p>And here's the important part: <strong>it only touches the picture.</strong> Your prompt passes through untouched. The model still reads your request perfectly. It just can't draw it properly anymore.</p>
+
+<p>That's the whole aesthetic. This isn't a model that forgot what a bicycle is. <em>It's a model that knows exactly what a bicycle is and has lost fine motor control.</em> 😅</p>
+
+<h3>Why only the first 3 steps?</h3>
+
+<p>This is the setting that matters most.</p>
+
+<pre>💥 💥 💥 ⬜ ⬜ ⬜ ⬜ ⬜
+ 0  1  2  3  4  5  6  7</pre>
+
+<p>Early steps decide <strong>composition</strong>: where the shapes go, where the light comes from. Later steps decide <strong>detail</strong>: brick texture, chrome highlights.</p>
+
+<p>Glitch the late steps → crunchy artifacts sprinkled on a normal photo. Looks like a broken JPEG. <em>Meh.</em></p>
+
+<p>Glitch the first three steps → you break the decision-making <em>before the model has committed to anything</em>. Then five clean steps do their absolute best to render that wreckage as a beautiful photograph. Soft morning daylight. Sharp focus. Applied to something that was never a bicycle. ✨</p>
+
+<p><strong>The model isn't glitching. The model is trying its hardest.</strong> The glitch happened three steps ago and it's too late for everyone.</p>
+
+<h3>Why is there a mask?</h3>
+
+<p>The mask decides <strong>where</strong> the damage lands. Outside it, the image generates completely normally.</p>
+
+<p>22 of these use a <strong>square</strong> mask, 7 use a <strong>circle</strong>. Both 512×512 and centred, so the middle half of the frame gets damaged and the edges stay clean.</p>
+
+<p>The point isn't subtlety, <em>it's contrast</em>. An image that's glitched everywhere just reads as "broken, scroll on". An image where the outside is a calm, sharp, perfectly lit photo of a white brick wall and the middle has fallen apart reads as <strong>something happening to a real place</strong>. Your eye needs the clean part to understand what it's losing.</p>
+
+<p>Square and circle feel different, too. The square's straight edges cut across the scene <em>like a screen inside the screen</em>. The circle melts into it, <em>as if the damage is welling up from inside</em>.</p>
+
+<h3>What changed between the images? One number 🎲</h3>
+
+<p>Everything above is identical in all 29 images. Same prompt. Same sampler seed.</p>
+
+<p>The only thing that moved is <strong><code>glitch_seed</code></strong>. It decides which 1,500 channels get hit and what the noise looks like. I just counted upwards and kept the ones I liked.</p>
+
+<p>Some images share a glitch seed — those came from the same batch of 4. Same damage, same everything. They differ only because each image in a batch starts from different noise, <em>a nice illustration of how much of the result is the glitch and how much is ordinary diffusion luck.</em></p>
+
+<p><strong>Same seed + same settings = same glitch, always.</strong> This is an instrument, not a slot machine. Find something you like, write down the seed, get it back tomorrow. 🎯</p>
+
+<hr>
+
+<h2>Recipes to try 🍳</h2>
+
+<h3>Start gentle</h3>
+<p><em>The smoke workflow's default.</em></p>
+<pre>mode noise, strength 0.5, probability 0.25, steps 0 → 3</pre>
+
+<h3>Melt the composition</h3>
+<p><em>What these images do.</em></p>
+<pre>mode noise, strength 5, probability 0.25, steps 0 → 2, binary, noise_scale 4</pre>
+
+<h3>Big soft blobs instead of fine grain</h3>
+<pre>mode noise, noise_scale 16, strength 3</pre>
+
+<h3>Rare violent spikes</h3>
+<pre>mode noise, distribution cauchy, strength 2</pre>
+
+<h3>Quiet the model down instead of shouting at it</h3>
+<pre>mode dropout, strength 1, target mlp, blocks 10 → 14</pre>
+
+<h3>Turn it inside out</h3>
+<pre>mode sign_flip, strength 1, steps 0 → 1</pre>
+
+<h3>Damage the texture but keep the composition</h3>
+<pre>mode noise, strength 5, steps 5 → 7</pre>
+
+<h3>Glitch one corner only</h3>
+<pre>any of the above + a CreateShapeMask placed off-centre</pre>
+
+<hr>
+
+<h2>Installing it</h2>
+
+<p>Clone it into <code>custom_nodes</code> and restart ComfyUI:</p>
+
+<pre>git clone https://github.com/wasawi/AI_generative_glitches.git /path/to/ComfyUI/custom_nodes/AI_generative_glitches</pre>
+
+<p>The nodes appear under <strong>experimental → glitches</strong>. You need a <strong>Krea2 model</strong> (GGUF or safetensors — <em>it checks the architecture, not the file format</em>).</p>
+
+<h3>The four workflows</h3>
+
+<ul>
+  <li>🟢 <strong>krea2-glitch-smoke.json</strong> — start here. Turn <code>enabled</code> on and off with a fixed seed and watch what one setting does.</li>
+  <li>🎨 <strong>krea2-glitch-shape.json</strong> — distributions, blob sizes, masks, curves. <em>These images came from this one.</em></li>
+  <li>🎲 <strong>krea2-glitch-random.json</strong> — every input driven by one master seed. Hit Queue, get a brand new recipe every time.</li>
+  <li>🎲 <strong>krea2-glitch-shape-random.json</strong> — the same, plus the shape and mask settings. Unplug any randomizer to fix that value by hand.</li>
+</ul>
+
+<hr>
+
+<h2>Good to know</h2>
+
+<ul>
+  <li>🔒 <strong>It never modifies your checkpoint.</strong> The damage only exists in memory, during generation.</li>
+  <li>⚠️ <strong>Very high strengths can overflow float16 models</strong> (black images or NaN errors). bfloat16 and float32 have far more headroom.</li>
+  <li>🚫 <strong>torch.compile isn't supported.</strong></li>
+  <li>😅 In the metadata of these images you'll find <code>spike_density 0.05</code>, which <strong>does nothing here</strong> — it only applies to the <code>spikes</code> distribution, and these use <code>binary</code>. <em>Leftover from an earlier session.</em></li>
+  <li>📈 You'll also spot two <strong>Spline Editor</strong> nodes sitting unplugged. They ramp the strength across the steps or across the blocks. I left them disconnected to keep this set simple. <em>They're a whole other rabbit hole.</em></li>
+</ul>
+
+<hr>
+
+<h2>It's free, and feedback is very welcome 🙏</h2>
+
+<p><strong>MIT licensed</strong>, so use it, change it, share it. If you find a bug, have an idea, or want support for another architecture (<em>Flux is the closest fit</em>), please open an issue on GitHub or leave a comment here.</p>
+
+<p>👉 <strong><a href="https://github.com/wasawi/AI_generative_glitches">https://github.com/wasawi/AI_generative_glitches</a></strong></p>
+
+<p><em>And if it comes out ugly, turn the strength up. It gets better right after the point where it should have gotten worse.</em> ✨</p>
+
+</body>
+</html>
