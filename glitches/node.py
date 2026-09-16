@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import comfy.patcher_extension
-from comfy.ldm.krea2.model import SingleStreamDiT
 
+from .architectures import architecture_for, supported_names
 from .recipe import MODES, SEED_MAX, STRENGTH_WIDGET_LIMIT, TARGETS, GlitchRecipe, clamp_to_model
 from .runtime import GlitchWrapper
 from .shape import DISTRIBUTIONS, NOISE_SCALE_MAX, GlitchShape
@@ -46,22 +46,24 @@ class GlitchModelKrea2:
     def apply(self, model, enabled, mode, strength, probability, target,
               block_start, block_end, step_start, step_end, glitch_seed, shape=None):
         diffusion_model = getattr(getattr(model, "model", None), "diffusion_model", None)
-        if not isinstance(diffusion_model, SingleStreamDiT):
+        architecture = architecture_for(diffusion_model)
+        if architecture is None:
             raise ValueError(
-                f"Glitch Model (Krea2) requires a Krea2 model; got {type(diffusion_model).__name__}"
+                f"Glitch Model (Krea2) requires a {supported_names()} model; "
+                f"got {type(diffusion_model).__name__}"
             )
         recipe = GlitchRecipe.build(
             enabled=enabled, mode=mode, strength=strength, probability=probability, target=target,
             block_start=block_start, block_end=block_end, step_start=step_start, step_end=step_end,
             glitch_seed=glitch_seed,
         )
-        recipe = clamp_to_model(recipe, n_blocks=len(diffusion_model.blocks))
+        recipe = clamp_to_model(recipe, n_blocks=architecture.block_count(diffusion_model))
         if shape is not None and not isinstance(shape, GlitchShape):
             raise TypeError("shape must come from a Glitch Shape (Krea2) node")
         clone = model.clone()
         if recipe.noop_reason() is None:
             clone.add_wrapper_with_key(
-                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, GlitchWrapper(recipe, shape)
+                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, GlitchWrapper(recipe, shape, architecture)
             )
         text = recipe.describe()
         if shape is not None:

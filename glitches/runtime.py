@@ -11,6 +11,7 @@ import math
 
 import torch
 
+from .architectures import Krea2Architecture
 from .effects import apply_glitch
 from .recipe import GlitchRecipe
 from .steps import step_from_sigmas
@@ -21,20 +22,16 @@ MISSING_SIGMAS = (
 )
 
 
-def image_token_grid(x: torch.Tensor, patch: int) -> tuple[int, int]:
-    # comfy/sample.py:58-59 unsqueezes a 4-D image latent to 5-D [B, C, 1, H, W] whenever
-    # the model's latent_format reports latent_dimensions == 3 (Krea2 uses Wan21, which does),
-    # so real Krea2 latents arrive 5-D with T == 1. SingleStreamDiT._forward flattens T into
-    # the batch dimension without repeating context, so only T == 1 is coherent.
-    if x.ndim == 5:
-        if x.shape[2] != 1:
-            raise ValueError(
-                "Glitch Model (Krea2) supports single-frame image latents [B, C, H, W] or "
-                f"[B, C, 1, H, W] only; multi-frame (T > 1) latents are unsupported, got {tuple(x.shape)}"
-            )
-    elif x.ndim != 4:
-        raise ValueError(f"Glitch Model (Krea2) supports image latents [B, C, H, W] only; got {x.ndim}-D input")
-    return math.ceil(x.shape[-2] / patch), math.ceil(x.shape[-1] / patch)
+def image_token_grid(x: torch.Tensor, patch: int, architecture=Krea2Architecture) -> tuple[int, int]:
+    """Kept for callers that pass a patch size directly; the adapter owns the rule."""
+    return architecture.image_token_grid(_PatchOnly(patch), x)
+
+
+class _PatchOnly:
+    """Minimal stand-in exposing just the attribute the grid rule reads."""
+
+    def __init__(self, patch):
+        self.patch = patch
 
 
 def image_token_count(x: torch.Tensor, patch: int) -> int:
@@ -56,9 +53,10 @@ def _make_hook(recipe: GlitchRecipe, block: int, family: str, step: int, txt: in
 
 
 class GlitchWrapper:
-    def __init__(self, recipe: GlitchRecipe, shape=None):
+    def __init__(self, recipe: GlitchRecipe, shape=None, architecture=Krea2Architecture):
         self.recipe = recipe
         self.shape = shape
+        self.architecture = architecture
 
     def __call__(self, executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs):
         if "sigmas" not in transformer_options or "sample_sigmas" not in transformer_options:
@@ -68,24 +66,24 @@ class GlitchWrapper:
             return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
 
         dit = executor.class_obj
-        grid = image_token_grid(x, dit.patch)
+        architecture = self.architecture
+        grid = architecture.image_token_grid(dit, x)
         n_img = grid[0] * grid[1]
-        txt = context.shape[1]
+        txt = architecture.text_token_count(context)
         shaping = {}
         if self.shape is not None:
             shaping = {
                 "shape": self.shape,
                 "grid": grid,
                 "n_steps": torch.as_tensor(transformer_options["sample_sigmas"]).numel() - 1,
-                "n_blocks": len(dit.blocks),
+                "n_blocks": architecture.block_count(dit),
             }
         handles = []
         try:
             for block in self.recipe.blocks:
-                modules = {"attention": dit.blocks[block].attn, "mlp": dit.blocks[block].mlp}
                 for family in self.recipe.families:
                     hook = _make_hook(self.recipe, block, family, step, txt, n_img, shaping)
-                    handles.append(modules[family].register_forward_hook(hook))
+                    handles.append(architecture.site_module(dit, block, family).register_forward_hook(hook))
             return executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)
         finally:
             for handle in handles:
