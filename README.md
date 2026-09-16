@@ -153,6 +153,28 @@ the sampling steps (first frame at step 0, last frame at the final step).
 `spikes` (density 0.05, blob size 4) inside a centred circle from `CreateShapeMask`. It needs
 comfyui-kjnodes.
 
+### Randomized version
+
+`workflows/krea2-lesion-shape-random.json` is the same graph with one `Master seed` node (set to
+*randomize*) driving **every** lesion, shape and mask input through `Math Expression` nodes and index
+switches — the same splitmix64 mixer as the random workflow, extended with two further mixed values so
+each setting reads its own bits. Unplug any randomizer to pin that input by hand; `enabled` and the
+KSampler seed stay manual, and `step_curve`/`block_curve` stay free for a Spline Editor.
+
+| Input | Random range |
+|---|---|
+| `mode`, `target` | all four modes / all three targets |
+| `strength` | 0.05–1.0 for dropout and sign_flip, 0.05–2.0 for amplify and noise |
+| `probability` | 0.05–1.0 |
+| blocks, steps | two draws each (0–27, 0–7), lower one is the start |
+| `distribution` | all six |
+| `spike_density` | 0.01–0.5 |
+| `noise_scale` | 1–16 |
+| mask `shape` | circle, square, triangle |
+| mask `frames` | 1–8 (each frame is a full-size mask tensor, so this is deliberately far below the node's 4096) |
+| mask canvas | 512, 768 or 1024 square |
+| mask position and size | derived from the canvas, so the shape always stays on it (10–60 % of the canvas) |
+
 ## Limits
 
 - torch.compile is not supported: ComfyUI's compile wrapper swaps `diffusion_model` at call time regardless
