@@ -3,3 +3,4 @@ __pycache__/
 .test-deps/
 .pytest_cache/
 .DS_Store
+ref_images/
