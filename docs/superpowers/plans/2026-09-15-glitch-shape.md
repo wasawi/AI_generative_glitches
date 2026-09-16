@@ -17,7 +17,7 @@
 - Only `glitches/node.py` imports `comfy`; relative imports inside the package.
 - Without a shape, `apply_glitch`, the recipe string and every existing test stay exactly as they are.
 - Registry keys: `GlitchModelKrea2` (existing), `GlitchShapeKrea2` (display `Glitch Shape (Krea2)`), category `experimental/glitches`, custom type `GLITCH_SHAPE`.
-- Every commit message ends with a `Co-Authored-By: <model that authored the commit> <noreply@anthropic.com>` line and `Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk`.
+- Every commit message ends with a `Co-Authored-By: <model that authored the commit> <noreply@anthropic.com>` line and `Claude-Session: <session link>`.
 
 ---
 

@@ -23,7 +23,7 @@
 - Every commit message ends with these two lines:
   ```
   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-  Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk
+  Claude-Session: <session link>
   ```
 
 ---
@@ -339,7 +339,7 @@ Expected: all tests PASS (23 passed).
 ```bash
 git add pytest.ini tests/conftest.py tests/test_recipe.py glitches/__init__.py glitches/recipe.py
 git commit -m "Add validated glitch recipe and test tooling" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 ---
@@ -579,7 +579,7 @@ Expected: all PASS.
 ```bash
 git add glitches/effects.py tests/test_effects.py
 git commit -m "Add deterministic channel selection and glitch transforms" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 ---
@@ -676,7 +676,7 @@ Expected: all PASS.
 ```bash
 git add glitches/steps.py tests/test_steps.py
 git commit -m "Add sampling step lookup from sigmas" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 ---
@@ -906,7 +906,7 @@ Expected: all PASS.
 ```bash
 git add glitches/runtime.py tests/test_runtime.py
 git commit -m "Add step-gated glitch wrapper with scoped forward hooks" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 ---
@@ -1232,7 +1232,7 @@ Expected: all PASS, 0 skipped.
 ```bash
 git add __init__.py glitches/node.py tests/test_node_integration.py tests/test_comfyui_loading.py tests/test_real_model_header.py
 git commit -m "Add Glitch Model (Krea2) node with ComfyUI integration tests" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 ---
@@ -1546,7 +1546,7 @@ Expected: all PASS, 0 skipped.
 ```bash
 git add tools/compare_images.py workflows/krea2-glitch-smoke.json README.md tests/test_compare_images.py tests/test_smoke_workflow.py
 git commit -m "Add smoke workflow, image comparison tool and README" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
-Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
+Claude-Session: <session link>"
 ```
 
 - [ ] **Step 9: Hand off the manual smoke test to the user**
