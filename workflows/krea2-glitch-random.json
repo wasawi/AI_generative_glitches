@@ -49,7 +49,7 @@
   },
   {
    "id": 2,
-   "type": "LesionModelKrea2",
+   "type": "GlitchModelKrea2",
    "pos": [
     470,
     130
@@ -150,12 +150,12 @@
      }
     },
     {
-     "localized_name": "lesion_seed",
-     "name": "lesion_seed",
+     "localized_name": "glitch_seed",
+     "name": "glitch_seed",
      "type": "INT",
      "link": 40,
      "widget": {
-      "name": "lesion_seed"
+      "name": "glitch_seed"
      }
     }
    ],
@@ -178,9 +178,9 @@
     }
    ],
    "properties": {
-    "Node name for S&R": "LesionModelKrea2"
+    "Node name for S&R": "GlitchModelKrea2"
    },
-   "title": "Lesion Model (Krea2) \u2014 randomized",
+   "title": "Glitch Model (Krea2) \u2014 randomized",
    "widgets_values": [
     true,
     "noise",
@@ -649,7 +649,7 @@
    },
    "title": "Save",
    "widgets_values": [
-    "lesionlab/random"
+    "glitchlab/random"
    ]
   },
   {
@@ -727,7 +727,7 @@
    "properties": {
     "Node name for S&R": "easy seed"
    },
-   "title": "Lesion master seed",
+   "title": "Glitch master seed",
    "widgets_values": [
     0,
     "randomize",
@@ -2280,7 +2280,7 @@
  "groups": [
   {
    "id": 1,
-   "title": "Lesion randomizer: master seed -> every lesion input except enabled",
+   "title": "Glitch randomizer: master seed -> every glitch input except enabled",
    "bounding": [
     -2000,
     -380,

@@ -15,7 +15,7 @@ def only(workflow, key, value):
 
 
 def smoke_inputs(class_type):
-    smoke = load_workflow("krea2-lesion-smoke.json")
+    smoke = load_workflow("krea2-glitch-smoke.json")
     return next(node for node in smoke.values() if node["class_type"] == class_type)["inputs"]
 
 

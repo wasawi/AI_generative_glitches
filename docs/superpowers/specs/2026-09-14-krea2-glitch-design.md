@@ -1,11 +1,11 @@
-# Krea2 Lesion Lab — design
+# Krea2 Glitches — design
 
 Status: approved in brainstorming, 2026-09-14. Supersedes the original
-`2026-09-14-krea2-lesion-lab-design.md` (kept in git history).
+`2026-09-14-krea2-glitch-lab-design.md` (kept in git history).
 
 ## Purpose
 
-A ComfyUI custom node that applies reproducible, parameterized lesions to the
+A ComfyUI custom node that applies reproducible, parameterized glitches to the
 internal activations of a Krea2 diffusion model while it generates, so the
 *picture itself* is distorted in controlled, repeatable ways. It never
 modifies a checkpoint file or the model weights. It is an experimental tool
@@ -40,19 +40,19 @@ exists but is not a target.
 ## Scope
 
 In: any Krea2 `MODEL` (GGUF via ComfyUI-GGUF, or safetensors via the core
-loader); lesions on the output of the attention and MLP sub-modules of the
+loader); glitches on the output of the attention and MLP sub-modules of the
 main transformer blocks, restricted to generated-image token positions.
 
 Out (first release): other architectures; text-fusion blocks; text-token or
-reference-image-token lesions; weight lesions or permanent GGUF variants;
+reference-image-token glitches; weight glitches or permanent GGUF variants;
 multi-frame (T > 1) latents; multi-GPU; torch.compile compatibility.
 
 ## Node
 
-Class `LesionModelKrea2`, registry key `LesionModelKrea2`, display name
-`Lesion Model (Krea2)`, category `experimental/lesion-lab`.
+Class `GlitchModelKrea2`, registry key `GlitchModelKrea2`, display name
+`Glitch Model (Krea2)`, category `experimental/glitches`.
 
-Wiring: `Load Diffusion Model` or `Unet Loader (GGUF)` → `Lesion Model (Krea2)` → `KSampler`.
+Wiring: `Load Diffusion Model` or `Unet Loader (GGUF)` → `Glitch Model (Krea2)` → `KSampler`.
 
 ### Inputs
 
@@ -60,7 +60,7 @@ Wiring: `Load Diffusion Model` or `Unet Loader (GGUF)` → `Lesion Model (Krea2)
 |---|---|---|---|---|
 | `model` | MODEL | — | — | Krea2 model |
 | `enabled` | BOOLEAN | `True` | — | `False` returns an unmodified clone |
-| `mode` | combo | `noise` | `dropout`, `amplify`, `sign_flip`, `noise` | Lesion type |
+| `mode` | combo | `noise` | `dropout`, `amplify`, `sign_flip`, `noise` | Glitch type |
 | `strength` | FLOAT | `0.15` | any finite value, step 0.01 (widget bounds ±1,000,000) | Dose, sign included; `0` is always a no-op |
 | `probability` | FLOAT | `0.25` | 0–1, step 0.0001 | Fraction of hidden channels hit per site |
 | `target` | combo | `both` | `attention`, `mlp`, `both` | Which sub-module outputs |
@@ -68,7 +68,7 @@ Wiring: `Load Diffusion Model` or `Unet Loader (GGUF)` → `Lesion Model (Krea2)
 | `block_end` | INT | `27` | 0–27 | Last block, inclusive; clamped to the model, never an error |
 | `step_start` | INT | `0` | 0–10000 | First sampling step, inclusive |
 | `step_end` | INT | `999` | 0–10000 | Last sampling step, inclusive |
-| `lesion_seed` | INT | `0` | 0–2^63−1 | Seed for channel selection and noise |
+| `glitch_seed` | INT | `0` | 0–2^63−1 | Seed for channel selection and noise |
 
 The seed input is deliberately **not** named `seed`: ComfyUI's frontend
 attaches an auto-randomizing "control after generate" widget to inputs named
@@ -79,27 +79,27 @@ attaches an auto-randomizing "control after generate" widget to inputs named
 `model` (MODEL) and `recipe` (STRING). Format for an active recipe:
 
 ```
-krea2-lesion v1 | mode=noise strength=0.15 probability=0.25 | target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | lesion_seed=0
+krea2-glitch v1 | mode=noise strength=0.15 probability=0.25 | target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | glitch_seed=0
 ```
 
 For a no-op the string starts with `no-op (<reason>) | ` followed by the same
 fields, where reason is `disabled`, `strength=0` or `probability=0`.
 
-## Lesion semantics
+## Glitch semantics
 
 A **site** is the output of `blocks[i].attn` or `blocks[i].mlp` for a block
 `i` in `[block_start, block_end]` and a family selected by `target`.
 `sites = (block_end − block_start + 1) × (2 if target == both else 1)`.
 
 Activations at a site have shape `[B, L, D]`, token order
-`[text | generated image | reference images]`. The lesion touches only rows
+`[text | generated image | reference images]`. The glitch touches only rows
 `txt : txt + n_img` (generated image) and only the selected channels.
 
-**Channel selection.** For each (lesion_seed, block, family, step), choose
+**Channel selection.** For each (glitch_seed, block, family, step), choose
 exactly `k = max(1, round(probability × D))` distinct channels using
 `torch.randperm(D, generator=g)[:k]` with a CPU generator. The generator seed
 is a stable 64-bit mix (splitmix64-style, not Python `hash`) of
-`(lesion_seed, block, family_id, step, purpose)` with `family_id`
+`(glitch_seed, block, family_id, step, purpose)` with `family_id`
 attention=0/mlp=1 and `purpose` selection=0/noise=1. The same channels are used
 for every image token and every batch item, so results do not depend on how
 ComfyUI batches cond/uncond.
@@ -146,20 +146,20 @@ KSampler Advanced `start_at_step` have shortened it).
 
 ```
 __init__.py              NODE_CLASS_MAPPINGS / NODE_DISPLAY_NAME_MAPPINGS (relative imports only)
-lesion_lab/__init__.py
-lesion_lab/recipe.py     LesionRecipe (frozen dataclass), build, noop_reason(), describe(), validate_against_model()
-lesion_lab/lesions.py    mix_seed, select_channels, apply_lesion (torch only)
-lesion_lab/steps.py      step_from_sigmas (torch only)
-lesion_lab/runtime.py    LesionWrapper, lesion hooks, image-slice computation (torch only, duck-typed)
-lesion_lab/node.py       LesionModelKrea2 (the only module importing comfy)
+glitches/__init__.py
+glitches/recipe.py     GlitchRecipe (frozen dataclass), build, noop_reason(), describe(), validate_against_model()
+glitches/effects.py    mix_seed, select_channels, apply_glitch (torch only)
+glitches/steps.py      step_from_sigmas (torch only)
+glitches/runtime.py    GlitchWrapper, glitch hooks, image-slice computation (torch only, duck-typed)
+glitches/node.py       GlitchModelKrea2 (the only module importing comfy)
 tests/                   unit + integration tests
 tools/compare_images.py  pixel comparison for the manual smoke test
-workflows/krea2-lesion-smoke.json
+workflows/krea2-glitch-smoke.json
 README.md
 docs/superpowers/{specs,plans}/
 ```
 
-Units depend only downward: `recipe` ← `lesions`, `steps` ← `runtime` ← `node`.
+Units depend only downward: `recipe` ← `glitches`, `steps` ← `runtime` ← `node`.
 Every module except `node.py` imports without ComfyUI. Inside the package,
 imports are relative (`from .recipe import …`), because ComfyUI loads custom
 nodes by file path under a hyphenated module name and does not put the
@@ -169,27 +169,27 @@ package folder on `sys.path`.
 
 1. If `model.model.diffusion_model` is not an instance of
    `comfy.ldm.krea2.model.SingleStreamDiT`, raise
-   `ValueError("Lesion Model (Krea2) requires a Krea2 model; got <class name>")`.
-2. `LesionRecipe.build(...)` validates inputs; then
+   `ValueError("Glitch Model (Krea2) requires a Krea2 model; got <class name>")`.
+2. `GlitchRecipe.build(...)` validates inputs; then
    `validate_against_model(recipe, n_blocks=len(diffusion_model.blocks))`
    rejects `block_end` beyond the last block.
 3. `clone = model.clone()`.
 4. No-op recipe: return `(clone, recipe.describe())`.
-5. Otherwise `clone.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, "lesion_lab", LesionWrapper(recipe))`
+5. Otherwise `clone.add_wrapper_with_key(WrappersMP.DIFFUSION_MODEL, "glitches", GlitchWrapper(recipe))`
    and return `(clone, recipe.describe())`.
 
 `ModelPatcher.clone()` copies wrapper lists, so the source model never
-carries the wrapper. Chained lesion nodes append to the same key in chain
+carries the wrapper. Chained glitch nodes append to the same key in chain
 order and their effects stack.
 
 ### Per model call
 
 `SingleStreamDiT.forward` runs all `DIFFUSION_MODEL` wrappers as
 `wrapper(executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)`,
-where `executor.class_obj` is the `SingleStreamDiT`. `LesionWrapper.__call__`:
+where `executor.class_obj` is the `SingleStreamDiT`. `GlitchWrapper.__call__`:
 
 1. Require `transformer_options["sample_sigmas"]` and `["sigmas"]`; if absent
-   raise `RuntimeError("Lesion Model (Krea2): sampler did not provide sample_sigmas; use KSampler, KSamplerAdvanced or SamplerCustom")`.
+   raise `RuntimeError("Glitch Model (Krea2): sampler did not provide sample_sigmas; use KSampler, KSamplerAdvanced or SamplerCustom")`.
 2. `step = step_from_sigmas(...)`. If outside `[step_start, step_end]`, return
    `executor(x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)`.
 3. Accept `x` of shape `[B, C, H, W]` or `[B, C, 1, H, W]` (ComfyUI passes Krea2 image latents
@@ -204,7 +204,7 @@ where `executor.class_obj` is the `SingleStreamDiT`. `LesionWrapper.__call__`:
    (covers exceptions and ComfyUI interrupts).
 5. Each hook: output must be a `torch.Tensor` with `shape[1] ≥ txt + n_img`,
    otherwise `RuntimeError` naming the block and family; returns
-   `apply_lesion(out, recipe, block, family, step, txt, n_img)`.
+   `apply_glitch(out, recipe, block, family, step, txt, n_img)`.
 
 ## Error handling summary
 
@@ -230,28 +230,28 @@ PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/
 
 **Unit tests (no ComfyUI):**
 - recipe: defaults, every validation message, strength accepting any finite value (negatives included), block-range clamping to the model, no-op reasons, `describe()` format.
-- lesions: each mode's formula on known values; exactly `k` channels changed; determinism; different step/block/family/seed → different selection; per-item identical result for batch 1 vs 2; text/reference rows and unselected channels unchanged; input not mutated; dtype preserved (float16/bfloat16).
+- glitches: each mode's formula on known values; exactly `k` channels changed; determinism; different step/block/family/seed → different selection; per-item identical result for batch 1 vs 2; text/reference rows and unselected channels unchanged; input not mutated; dtype preserved (float16/bfloat16).
 - steps: exact schedule points, in-between sigmas, final step, sigma above `sample_sigmas[0]`, shortened schedules.
 
 **Integration tests** (import ComfyUI read-only from `COMFYUI_ROOT`, default `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`; skipped if absent):
 - Tiny real `SingleStreamDiT` (2 blocks, small width) inside a real `ModelPatcher`, driven through the real `WrapperExecutor` with synthetic `sigmas` / `sample_sigmas`: output differs inside the window and is bit-identical outside; hooks removed after success and after a forced exception; source patcher has no wrapper; chained nodes stack; reference-latent path works; non-Krea2 model rejected.
 - GGUF header check (skipped if the file is absent): the tensor names of `museByStableYogi_v25GGUF.gguf` contain `blocks.{0..27}.attn.*` and `blocks.{0..27}.mlp.*`; no tensor data is read.
-- Load-as-ComfyUI check: import this folder exactly as `nodes.load_custom_node` does (`spec_from_file_location(<folder path with "." replaced by "_x_">, "<folder>/__init__.py")`) and assert `NODE_CLASS_MAPPINGS["LesionModelKrea2"]`, the input names and the outputs.
+- Load-as-ComfyUI check: import this folder exactly as `nodes.load_custom_node` does (`spec_from_file_location(<folder path with "." replaced by "_x_">, "<folder>/__init__.py")`) and assert `NODE_CLASS_MAPPINGS["GlitchModelKrea2"]`, the input names and the outputs.
 
 **Manual smoke test (user, in the running ComfyUI):** after creating the
-symlink and restarting, load `workflows/krea2-lesion-smoke.json` (derived
+symlink and restarting, load `workflows/krea2-glitch-smoke.json` (derived
 read-only from an existing Krea2 workflow of the user's), fixed prompt and
 sampler seed, and generate alternately: A off, B on, C off, D on (alternating
-because ComfyUI caches results for unchanged inputs; A/C is the baseline pair, B/D the lesion pair). `tools/compare_images.py A.png B.png` reports identical
+because ComfyUI caches results for unchanged inputs; A/C is the baseline pair, B/D the glitch pair). `tools/compare_images.py A.png B.png` reports identical
 / max and mean absolute pixel difference. Pass: all four runs complete, the
 pairs match (or differ only at the level of the setup's normal MPS
-nondeterminism, which the baseline pair measures), and baseline vs lesion
+nondeterminism, which the baseline pair measures), and baseline vs glitch
 differ visibly.
 
 ## Documentation
 
 `README.md`: symlink command, wiring, every input, mode formulas, step
-meaning, keep `lesion_seed` fixed, limits (torch.compile unsupported; no
+meaning, keep `glitch_seed` fixed, limits (torch.compile unsupported; no
 multi-frame latents; no multi-GPU), a first experiment
 (`noise`, strength 0.5, probability 0.25, target both, blocks 0-27, steps 0-3),
 and how to run the tests.
@@ -263,7 +263,7 @@ and how to run the tests.
 - ComfyUI's Krea2 code or wrapper API may change in later versions; the
   integration tests against the installed ComfyUI detect this.
 - MPS kernels may not be bit-deterministic between runs; the baseline pair in
-  the smoke test measures this before judging the lesion pair.
+  the smoke test measures this before judging the glitch pair.
 - torch.compile is not supported: ComfyUI's torch.compile wrapper is an
   APPLY_MODEL wrapper that swaps `diffusion_model` at call time, and both
   wrappers end up on the final patcher regardless of node order, so no

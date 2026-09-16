@@ -9,9 +9,9 @@ GRID_H, GRID_W = (H + 1) // 2, (W + 1) // 2  # latent 9x6 -> 5x3 image tokens
 
 @pytest.fixture
 def shape_node(comfy):
-    from lesion_lab.node import LesionShapeKrea2
+    from glitches.node import GlitchShapeKrea2
 
-    return LesionShapeKrea2()
+    return GlitchShapeKrea2()
 
 
 def make_shape(shape_node, **overrides):
@@ -22,15 +22,15 @@ def make_shape(shape_node, **overrides):
 
 
 def test_shape_node_declares_inputs_and_builds_a_shape(shape_node):
-    from lesion_lab.shape import LesionShape
+    from glitches.shape import GlitchShape
 
     spec = type(shape_node).INPUT_TYPES()
     assert list(spec["required"]) == ["distribution", "spike_density", "noise_scale"]
     assert list(spec["optional"]) == ["step_curve", "block_curve", "spatial_mask"]
     assert spec["optional"]["step_curve"] == ("FLOAT", {"forceInput": True})
-    assert type(shape_node).RETURN_TYPES == ("LESION_SHAPE",)
+    assert type(shape_node).RETURN_TYPES == ("GLITCH_SHAPE",)
     shape = make_shape(shape_node, distribution="spikes", noise_scale=4, step_curve=[0.0, 1.0], spatial_mask=torch.ones(3, 8, 8))
-    assert isinstance(shape, LesionShape)
+    assert isinstance(shape, GlitchShape)
 
 
 def test_recipe_gains_shape_summary_only_when_connected(shape_node, node, patcher):
@@ -42,11 +42,11 @@ def test_recipe_gains_shape_summary_only_when_connected(shape_node, node, patche
 
 
 def test_wrong_shape_type_is_rejected(node, patcher):
-    with pytest.raises(TypeError, match=r"shape must come from a Lesion Shape \(Krea2\) node"):
+    with pytest.raises(TypeError, match=r"shape must come from a Glitch Shape \(Krea2\) node"):
         apply(node, patcher, shape="not a shape")
 
 
-def test_mask_limits_the_lesion_to_masked_tokens(shape_node, node, patcher):
+def test_mask_limits_the_glitch_to_masked_tokens(shape_node, node, patcher):
     mask = torch.zeros(GRID_H, GRID_W)
     mask[:, 0] = 1.0
     shape = make_shape(shape_node, spatial_mask=mask)
@@ -59,13 +59,13 @@ def test_mask_limits_the_lesion_to_masked_tokens(shape_node, node, patcher):
         run(clone, 0.75)
     finally:
         handle.remove()
-    base, lesioned = captured
+    base, glitched = captured
     n_img = GRID_H * GRID_W
     base_img = base[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
-    lesioned_img = lesioned[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
-    assert not torch.equal(base_img[:, :, 0], lesioned_img[:, :, 0])
-    assert torch.equal(base_img[:, :, 1:], lesioned_img[:, :, 1:])
-    assert torch.equal(base[:, :TXT], lesioned[:, :TXT])
+    glitched_img = glitched[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
+    assert not torch.equal(base_img[:, :, 0], glitched_img[:, :, 0])
+    assert torch.equal(base_img[:, :, 1:], glitched_img[:, :, 1:])
+    assert torch.equal(base[:, :TXT], glitched[:, :TXT])
     assert hook_count(clone) == 0
 
 
@@ -76,7 +76,7 @@ def test_step_curve_zeros_leave_those_steps_untouched(shape_node, node, patcher)
         assert (not torch.equal(run(patcher, sigma), run(clone, sigma))) == changed, f"sigma={sigma}"
 
 
-def test_one_shape_can_drive_two_chained_lesion_nodes(shape_node, node, patcher):
+def test_one_shape_can_drive_two_chained_glitch_nodes(shape_node, node, patcher):
     shape = make_shape(shape_node, distribution="binary", noise_scale=2)
     first, _ = apply(node, patcher, mode="noise", strength=0.5, target="attention", block_end=0, shape=shape)
     second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, shape=shape)

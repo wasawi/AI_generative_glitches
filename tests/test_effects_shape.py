@@ -1,9 +1,9 @@
 import pytest
 import torch
 
-from lesion_lab.lesions import apply_lesion, select_channels
-from lesion_lab.shape import LesionShape
-from test_lesions import IMG, N_IMG, TXT, WIDTH, activations, lesion, recipe
+from glitches.effects import apply_glitch, select_channels
+from glitches.shape import GlitchShape
+from test_effects import IMG, N_IMG, TXT, WIDTH, activations, glitch, recipe
 
 MODES = ["dropout", "amplify", "sign_flip", "noise"]
 GRID = (2, 2)  # N_IMG == 4
@@ -12,19 +12,19 @@ GRID = (2, 2)  # N_IMG == 4
 def shape(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 def shaped(out, r, s, step=2, block=3, family="mlp", n_steps=8, n_blocks=28, grid=GRID):
-    return apply_lesion(out, r, block, family, step, TXT, N_IMG, shape=s, grid=grid, n_steps=n_steps, n_blocks=n_blocks)
+    return apply_glitch(out, r, block, family, step, TXT, N_IMG, shape=s, grid=grid, n_steps=n_steps, n_blocks=n_blocks)
 
 
 @pytest.mark.parametrize("mode", MODES)
 def test_passing_no_shape_is_bit_identical_to_the_base_path(mode):
     out = activations()
     r = recipe(mode, 0.5)
-    result = apply_lesion(out, r, 3, "mlp", 2, TXT, N_IMG, shape=None, grid=GRID, n_steps=8, n_blocks=28)
-    assert torch.equal(result, lesion(out, r))
+    result = apply_glitch(out, r, 3, "mlp", 2, TXT, N_IMG, shape=None, grid=GRID, n_steps=8, n_blocks=28)
+    assert torch.equal(result, glitch(out, r))
 
 
 @pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip"])
@@ -32,7 +32,7 @@ def test_all_ones_shape_matches_the_unshaped_result(mode):
     out = activations()
     r = recipe(mode, 0.5)
     ones = shape(step_curve=[1.0], block_curve=[1.0], spatial_mask=torch.ones(2, 2))
-    torch.testing.assert_close(shaped(out, r, ones), lesion(out, r))
+    torch.testing.assert_close(shaped(out, r, ones), glitch(out, r))
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -50,7 +50,7 @@ def test_zero_mask_leaves_the_activation_untouched(mode, dtype):
     assert torch.equal(result, out)
 
 
-def test_left_column_mask_only_lesions_left_column_tokens():
+def test_left_column_mask_only_glitches_left_column_tokens():
     out = activations()
     r = recipe("dropout", 1.0, probability=1.0)
     result = shaped(out, r, shape(spatial_mask=torch.tensor([[1.0, 0.0], [1.0, 0.0]])))

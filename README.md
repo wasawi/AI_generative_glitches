@@ -1,6 +1,6 @@
 # ComfyUI-LesionLab
 
-`Lesion Model (Krea2)` damages a Krea2 model's internal activations while it generates, in a controlled
+`Glitch Model (Krea2)` damages a Krea2 model's internal activations while it generates, in a controlled
 and repeatable way, so you can see how the picture changes. It never modifies a checkpoint file or the
 model weights: remove the node and the model is back to normal.
 
@@ -12,12 +12,12 @@ This folder is the custom-node package. Link it into ComfyUI once, then restart 
 ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab
 ```
 
-The node appears under **experimental → lesion-lab**. Edits in this folder take effect after a restart.
+The node appears under **experimental → glitches**. Edits in this folder take effect after a restart.
 
 ## Wiring
 
 ```
-GGUF Loader / Unet Loader (GGUF) / Load Diffusion Model → Lesion Model (Krea2) → KSampler → VAE Decode → Save Image
+GGUF Loader / Unet Loader (GGUF) / Load Diffusion Model → Glitch Model (Krea2) → KSampler → VAE Decode → Save Image
 ```
 
 `GGUF Loader` (`LoaderGGUF`, from the `gguf` custom-node pack) and `Unet Loader (GGUF)` (from ComfyUI-GGUF) are
@@ -35,12 +35,12 @@ your image metadata.
 | `mode` | `dropout`, `amplify`, `sign_flip` or `noise` (below) |
 | `strength` | Dose. Any finite value, negative included: a negative dose runs the formula backwards (negative `dropout` amplifies, negative `amplify` attenuates and inverts). 0 is always no change |
 | `probability` | Fraction of the 6144 hidden channels hit at each site (at least one when > 0, so 0.0002 ≈ a single channel). Step 0.0001 |
-| `target` | Lesion the output of `attention`, `mlp` or `both` in each block |
+| `target` | Glitch the output of `attention`, `mlp` or `both` in each block |
 | `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive. A value past the model's last block is clamped, never an error |
 | `step_start`, `step_end` | Which sampling steps, inclusive; step 0 is the first step KSampler runs |
-| `lesion_seed` | Picks the channels and the noise. Same seed + same settings = same lesion. Keep it fixed while comparing runs; change it deliberately to get a different lesion pattern |
+| `glitch_seed` | Picks the channels and the noise. Same seed + same settings = same glitch. Keep it fixed while comparing runs; change it deliberately to get a different glitch pattern |
 
-Only the image being generated is lesioned. Prompt tokens, the text-fusion stage and reference images are
+Only the image being generated is glitched. Prompt tokens, the text-fusion stage and reference images are
 never touched, so the model still reads the prompt; it just draws it wrongly.
 
 At each site and step, the same randomly chosen channels are hit for every image token. With strength `s`:
@@ -52,14 +52,14 @@ At each site and step, the same randomly chosen channels are hit for every image
 | `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated, 1.5 = −2x, −1 = tripled) | any finite |
 | `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | any finite |
 
-Steps: with 8 sampling steps, `step_start=0, step_end=3` lesions the first half, where composition is
+Steps: with 8 sampling steps, `step_start=0, step_end=3` glitches the first half, where composition is
 decided; later steps mostly affect detail and texture. With `denoise < 1` or KSampler Advanced
 `start_at_step`, step 0 is the first step actually run.
 
 ## First experiment
 
-`workflows/krea2-lesion-smoke.json` (open it with **Workflow → Open**): fixed prompt and seed,
-8 steps, lesion node set to `noise`, strength 0.5, probability 0.25, target both, blocks 0–27, steps 0–3.
+`workflows/krea2-glitch-smoke.json` (open it with **Workflow → Open**): fixed prompt and seed,
+8 steps, glitch node set to `noise`, strength 0.5, probability 0.25, target both, blocks 0–27, steps 0–3.
 
 1. Set the KSampler's *control after generate* to **fixed** if it shows `randomize`.
 2. Run with `enabled` **off** → image A.
@@ -68,24 +68,24 @@ decided; later steps mostly affect detail and texture. With `denoise < 1` or KSa
 5. Run with `enabled` **on** → image D.
 
 Alternate like this: ComfyUI caches results, so re-queuing identical settings returns the cached image
-instead of generating again. Then compare (images are in ComfyUI's output folder under `lesionlab/`):
+instead of generating again. Then compare (images are in ComfyUI's output folder under `glitchlab/`):
 
 ```bash
 /Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png C.png   # how much your setup varies run to run
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the lesion repeats
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the lesion's effect
+/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the glitch repeats
+/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the glitch's effect
 ```
 
 A/C and B/D should be identical, or differ no more than A/C does (Apple GPU kernels are not always
 bit-exact). A/B should differ clearly.
 
 Things to try next: `dropout` strength 1 on `mlp` only; a narrow block range such as 10–14; only late
-steps (5–7); compare `lesion_seed` 0, 1 and 2 at the same settings.
+steps (5–7); compare `glitch_seed` 0, 1 and 2 at the same settings.
 
 ## Random exploration
 
-`workflows/krea2-lesion-random.json` is the smoke workflow with every lesion input except `enabled` driven by
-one random **master seed** (the `Lesion master seed` node, set to *randomize*). Every queue draws a new recipe
+`workflows/krea2-glitch-random.json` is the smoke workflow with every glitch input except `enabled` driven by
+one random **master seed** (the `Glitch master seed` node, set to *randomize*). Every queue draws a new recipe
 that is always valid:
 
 | Input | Random range |
@@ -96,14 +96,14 @@ that is always valid:
 | `probability` | 0.05–1.0 |
 | `block_start`, `block_end` | two draws in 0–27, lower one is the start |
 | `step_start`, `step_end` | two draws in 0–7 (the 8 KSampler steps), lower one is the start |
-| `lesion_seed` | the master seed itself |
+| `glitch_seed` | the master seed itself |
 
 How it works, with no custom code: three core `Math Expression` nodes mix the master seed (splitmix64), eight more
 read separate bit fields of the result, and two `easy anythingIndexSwitch` nodes turn the mode and target indexes
 into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingIndexSwitch`).
 
-- The KSampler seed stays **fixed**, so only the lesion changes between runs. The `Recipe` preview shows what was drawn.
-- To repeat a result, set `Lesion master seed` to **fixed** and enter that seed. The seed is also stored in the
+- The KSampler seed stays **fixed**, so only the glitch changes between runs. The `Recipe` preview shows what was drawn.
+- To repeat a result, set `Glitch master seed` to **fixed** and enter that seed. The seed is also stored in the
   workflow embedded in each saved PNG.
 - To change a range, edit the expression in the matching node: `2.0` and `1.0` in `strength`, `0.05` in
   `strength`/`probability`, `% 28` in the block nodes. The step nodes use `& 7` (0–7); for a different KSampler
@@ -112,10 +112,10 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
   from 49 to 54 (bits 46–53 and 54–61 are otherwise unused; do not use `(a >> 49) & 255`, since bits 49–56
   would overlap the first field and correlate the two draws).
 
-## Shaping the lesion
+## Shaping the glitch
 
-`Lesion Shape (Krea2)` is an optional companion node. Connect its `shape` output to the lesion node's
-`shape` input; without it the lesion node behaves exactly as described above.
+`Glitch Shape (Krea2)` is an optional companion node. Connect its `shape` output to the glitch node's
+`shape` input; without it the glitch node behaves exactly as described above.
 
 | Input | Meaning |
 |---|---|
@@ -124,7 +124,7 @@ into the combo values. It needs comfyui-easy-use (`easy seed`, `easy anythingInd
 | `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain … up to 64 = very large blobs; at the maximum, the coarse grid can collapse to a single cell (at 1024×1024, a 64×64 token grid, `noise_scale` 64 gives each channel one constant value across the whole image — a per-channel offset rather than noise). Noise mode only |
 | `step_curve` | Strength multiplier across sampling steps (every mode) |
 | `block_curve` | Strength multiplier across the 28 blocks (every mode) |
-| `spatial_mask` | Strength multiplier over the picture (every mode): white = full lesion, black = untouched |
+| `spatial_mask` | Strength multiplier over the picture (every mode): white = full glitch, black = untouched |
 
 At `noise_scale` 1 every distribution except `cauchy` has the same average size, so `strength` means the
 same across them. At `noise_scale` above 1 the field is rescaled per channel, which brings `cauchy` to
@@ -138,8 +138,8 @@ and connect it to `step_curve`; for one control point per Krea2 block, set `poin
 connect it to `block_curve`. A curve is always stretched over the whole run regardless of that count: its
 first point is step 0 (or block 0), its last point the final step (or block 27), with straight lines in
 between, whatever `points_to_sample` is — so any other length still works. Values above 1 boost the
-lesion; negative values reverse it. KJNodes' Spline Editor defaults its own `min_value`/`max_value` to
-0/1, so raise `max_value` above 1 to boost or lower `min_value` below 0 to reverse. The lesion node's
+glitch; negative values reverse it. KJNodes' Spline Editor defaults its own `min_value`/`max_value` to
+0/1, so raise `max_value` above 1 to boost or lower `min_value` below 0 to reverse. The glitch node's
 step and block windows still limit where it acts,
 so open them fully (`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve
 do the shaping.
@@ -149,14 +149,14 @@ do the shaping.
 stretched to the image, so draw it at the image's aspect ratio. A mask with several frames plays across
 the sampling steps (first frame at step 0, last frame at the final step).
 
-`workflows/krea2-lesion-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
+`workflows/krea2-glitch-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
 `spikes` (density 0.05, blob size 4) inside a centred circle from `CreateShapeMask`. It needs
 comfyui-kjnodes.
 
 ### Randomized version
 
-`workflows/krea2-lesion-shape-random.json` is the same graph with one `Master seed` node (set to
-*randomize*) driving **every** lesion, shape and mask input through `Math Expression` nodes and index
+`workflows/krea2-glitch-shape-random.json` is the same graph with one `Master seed` node (set to
+*randomize*) driving **every** glitch, shape and mask input through `Math Expression` nodes and index
 switches — the same splitmix64 mixer as the random workflow, extended with two further mixed values so
 each setting reads its own bits. Unplug any randomizer to pin that input by hand; `enabled` and the
 KSampler seed stay manual, and `step_curve`/`block_curve` stay free for a Spline Editor.

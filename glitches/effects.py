@@ -6,7 +6,7 @@ import math
 
 import torch
 
-from .recipe import LesionRecipe
+from .recipe import GlitchRecipe
 
 FAMILY_IDS = {"attention": 0, "mlp": 1}
 PURPOSE_SELECT = 0
@@ -22,10 +22,10 @@ def _splitmix64(value: int) -> int:
     return value ^ (value >> 31)
 
 
-def mix_seed(lesion_seed: int, block: int, family: str, step: int, purpose: int) -> int:
+def mix_seed(glitch_seed: int, block: int, family: str, step: int, purpose: int) -> int:
     """Stable 63-bit generator seed for one site, step and purpose (independent of PYTHONHASHSEED)."""
     state = 0
-    for part in (lesion_seed, block, FAMILY_IDS[family], step, purpose):
+    for part in (glitch_seed, block, FAMILY_IDS[family], step, purpose):
         state = _splitmix64(state ^ (int(part) & _MASK64))
     return state & ((1 << 63) - 1)
 
@@ -34,13 +34,13 @@ def channel_count(probability: float, width: int) -> int:
     return min(width, max(1, round(probability * width)))
 
 
-def select_channels(recipe: LesionRecipe, block: int, family: str, step: int, width: int) -> torch.Tensor:
+def select_channels(recipe: GlitchRecipe, block: int, family: str, step: int, width: int) -> torch.Tensor:
     generator = torch.Generator(device="cpu")
-    generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_SELECT))
+    generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_SELECT))
     return torch.randperm(width, generator=generator)[: channel_count(recipe.probability, width)]
 
 
-def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
+def apply_glitch(out: torch.Tensor, recipe: GlitchRecipe, block: int, family: str, step: int,
                  txt: int, n_img: int, *, shape=None, grid=None, n_steps=None, n_blocks=None) -> torch.Tensor:
     """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``.
 
@@ -57,22 +57,22 @@ def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: st
     strength = recipe.strength
 
     if recipe.mode == "dropout":
-        lesioned = values * (1.0 - strength)
+        glitched = values * (1.0 - strength)
     elif recipe.mode == "amplify":
-        lesioned = values * (1.0 + strength)
+        glitched = values * (1.0 + strength)
     elif recipe.mode == "sign_flip":
-        lesioned = values * (1.0 - 2.0 * strength)
+        glitched = values * (1.0 - 2.0 * strength)
     elif recipe.mode == "noise":
         rms = torch.linalg.vector_norm(region, dim=-1, keepdim=True, dtype=torch.float32) / math.sqrt(region.shape[-1])
         generator = torch.Generator(device=out.device)
-        generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
+        generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_NOISE))
         noise = torch.randn((n_img, selected.numel()), generator=generator, device=out.device, dtype=torch.float32)
-        lesioned = values.float() + strength * rms * noise
+        glitched = values.float() + strength * rms * noise
     else:
-        raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
+        raise ValueError(f"unsupported glitch mode: {recipe.mode!r}")
 
     result = out.clone()
-    result[:, rows, :].index_copy_(2, selected, lesioned.to(out.dtype))
+    result[:, rows, :].index_copy_(2, selected, glitched.to(out.dtype))
     return result
 
 
@@ -100,20 +100,20 @@ def _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_s
     dose = recipe.strength * multiplier
 
     if recipe.mode == "dropout":
-        lesioned = values * (1.0 - dose)
+        glitched = values * (1.0 - dose)
     elif recipe.mode == "amplify":
-        lesioned = values * (1.0 + dose)
+        glitched = values * (1.0 + dose)
     elif recipe.mode == "sign_flip":
-        lesioned = values * (1.0 - 2.0 * dose)
+        glitched = values * (1.0 - 2.0 * dose)
     elif recipe.mode == "noise":
         rms = torch.linalg.vector_norm(region, dim=-1, keepdim=True, dtype=torch.float32) / math.sqrt(region.shape[-1])
         generator = torch.Generator(device=out.device)
-        generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
+        generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_NOISE))
         noise = shape.draw_noise(selected.numel(), h, w, generator, out.device)
-        lesioned = values + dose * rms * noise
+        glitched = values + dose * rms * noise
     else:
-        raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
+        raise ValueError(f"unsupported glitch mode: {recipe.mode!r}")
 
     result = out.clone()
-    result[:, rows, :].index_copy_(2, selected, lesioned.to(out.dtype))
+    result[:, rows, :].index_copy_(2, selected, glitched.to(out.dtype))
     return result

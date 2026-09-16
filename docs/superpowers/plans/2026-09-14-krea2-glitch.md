@@ -1,14 +1,14 @@
-# Krea2 Lesion Lab Implementation Plan
+# Krea2 Glitches Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the `Lesion Model (Krea2)` ComfyUI node, which applies reproducible, step-gated lesions to the image-token activations of a Krea2 model's attention/MLP outputs without touching weights or files.
+**Goal:** Build the `Glitch Model (Krea2)` ComfyUI node, which applies reproducible, step-gated glitches to the image-token activations of a Krea2 model's attention/MLP outputs without touching weights or files.
 
-**Architecture:** This folder is the custom-node package. Pure modules (`recipe`, `lesions`, `steps`, `runtime`) hold all logic and are unit-tested without ComfyUI. `node.py` clones the incoming MODEL and registers a keyed `DIFFUSION_MODEL` wrapper; per model call the wrapper computes the sampling step from sigmas, attaches forward hooks to the selected `blocks[i].attn` / `blocks[i].mlp`, runs the model, and removes the hooks in `finally`. Integration tests drive a tiny real Krea2 `SingleStreamDiT` inside a real `ModelPatcher` from the installed ComfyUI.
+**Architecture:** This folder is the custom-node package. Pure modules (`recipe`, `glitches`, `steps`, `runtime`) hold all logic and are unit-tested without ComfyUI. `node.py` clones the incoming MODEL and registers a keyed `DIFFUSION_MODEL` wrapper; per model call the wrapper computes the sampling step from sigmas, attaches forward hooks to the selected `blocks[i].attn` / `blocks[i].mlp`, runs the model, and removes the hooks in `finally`. Integration tests drive a tiny real Krea2 `SingleStreamDiT` inside a real `ModelPatcher` from the installed ComfyUI.
 
 **Tech Stack:** Python 3.12.11, torch 2.9.1, ComfyUI 0.35.1 (`comfy.model_patcher`, `comfy.patcher_extension`, `comfy.ldm.krea2.model`), pytest (installed into `./.test-deps`), numpy/PIL (already in the ComfyUI venv).
 
-**Spec:** `docs/superpowers/specs/2026-09-14-krea2-lesion-lab-design.md`
+**Spec:** `docs/superpowers/specs/2026-09-14-krea2-glitch-lab-design.md`
 
 ## Global Constraints
 
@@ -17,9 +17,9 @@
 - Test command (run from the repo root): `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v`. Below this is abbreviated as `$PYTEST <paths>`. Always pass tests or explicit test file paths; never run pytest without a path from the repo root (pytest would import the root __init__.py, which imports ComfyUI).
 - ComfyUI code (read-only): `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`, overridable with env `COMFYUI_ROOT`.
 - Never write, rename or replace a checkpoint; never patch weights; never modify ComfyUI or other custom nodes.
-- Inside the package use relative imports only (`from .recipe import …`). Only `lesion_lab/node.py` imports `comfy`.
-- Node: class/registry key `LesionModelKrea2`, display name `Lesion Model (Krea2)`, category `experimental/lesion-lab`, outputs `("MODEL", "STRING")` named `("model", "recipe")`, wrapper key `"lesion_lab"`.
-- Inputs, in order: `model`, `enabled` (True), `mode` (`dropout`/`amplify`/`sign_flip`/`noise`, default `noise`), `strength` (0.15, 0–10), `probability` (0.25, 0–1), `target` (`attention`/`mlp`/`both`, default `both`), `block_start` (0), `block_end` (27), `step_start` (0), `step_end` (999), `lesion_seed` (0, 0–2^63−1). No input may be named `seed` or `noise_seed`.
+- Inside the package use relative imports only (`from .recipe import …`). Only `glitches/node.py` imports `comfy`.
+- Node: class/registry key `GlitchModelKrea2`, display name `Glitch Model (Krea2)`, category `experimental/glitches`, outputs `("MODEL", "STRING")` named `("model", "recipe")`, wrapper key `"glitches"`.
+- Inputs, in order: `model`, `enabled` (True), `mode` (`dropout`/`amplify`/`sign_flip`/`noise`, default `noise`), `strength` (0.15, 0–10), `probability` (0.25, 0–1), `target` (`attention`/`mlp`/`both`, default `both`), `block_start` (0), `block_end` (27), `step_start` (0), `step_end` (999), `glitch_seed` (0, 0–2^63−1). No input may be named `seed` or `noise_seed`.
 - Every commit message ends with these two lines:
   ```
   Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
@@ -33,40 +33,40 @@
 | Path | Responsibility |
 |---|---|
 | `__init__.py` | ComfyUI registration (`NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`) |
-| `lesion_lab/__init__.py` | Package marker; imports nothing (keeps unit tests ComfyUI-free) |
-| `lesion_lab/recipe.py` | `LesionRecipe` frozen dataclass, input validation, no-op reason, `describe()`, `validate_against_model()` |
-| `lesion_lab/lesions.py` | `mix_seed`, `channel_count`, `select_channels`, `apply_lesion` |
-| `lesion_lab/steps.py` | `step_from_sigmas` |
-| `lesion_lab/runtime.py` | `image_token_count`, `LesionWrapper` (hooks lifecycle) |
-| `lesion_lab/node.py` | `LesionModelKrea2` ComfyUI node |
+| `glitches/__init__.py` | Package marker; imports nothing (keeps unit tests ComfyUI-free) |
+| `glitches/recipe.py` | `GlitchRecipe` frozen dataclass, input validation, no-op reason, `describe()`, `validate_against_model()` |
+| `glitches/effects.py` | `mix_seed`, `channel_count`, `select_channels`, `apply_glitch` |
+| `glitches/steps.py` | `step_from_sigmas` |
+| `glitches/runtime.py` | `image_token_count`, `GlitchWrapper` (hooks lifecycle) |
+| `glitches/node.py` | `GlitchModelKrea2` ComfyUI node |
 | `tests/pytest.ini` | pytest options (rootdir = tests/), filters torch's pynvml FutureWarning |
 | `tests/conftest.py` | package on `sys.path`; `comfy_root` fixture |
-| `tests/test_recipe.py`, `tests/test_lesions.py`, `tests/test_steps.py`, `tests/test_runtime.py` | unit tests |
+| `tests/test_recipe.py`, `tests/test_effects.py`, `tests/test_steps.py`, `tests/test_runtime.py` | unit tests |
 | `tests/test_node_integration.py` | tiny real Krea2 through real `ModelPatcher` |
 | `tests/test_comfyui_loading.py` | import exactly like ComfyUI's `load_custom_node` |
 | `tests/test_real_model_header.py` | tensor names of the real GGUF |
 | `tests/test_compare_images.py`, `tests/test_smoke_workflow.py` | tooling checks |
 | `tools/compare_images.py` | pixel comparison CLI |
-| `workflows/krea2-lesion-smoke.json` | API-format smoke workflow |
+| `workflows/krea2-glitch-smoke.json` | API-format smoke workflow |
 | `README.md` | install, usage, experiment guide |
 
 ---
 
-### Task 1: Test tooling and the lesion recipe
+### Task 1: Test tooling and the glitch recipe
 
 **Files:**
-- Create: `pytest.ini`, `tests/conftest.py`, `lesion_lab/__init__.py`, `lesion_lab/recipe.py`
+- Create: `pytest.ini`, `tests/conftest.py`, `glitches/__init__.py`, `glitches/recipe.py`
 - Test: `tests/test_recipe.py`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces (in `lesion_lab/recipe.py`):
+- Produces (in `glitches/recipe.py`):
   - `MODES = ("dropout", "amplify", "sign_flip", "noise")`, `TARGETS = ("attention", "mlp", "both")`, `FAMILIES = ("attention", "mlp")`, `STRENGTH_MAX: dict[str, float]`, `SEED_MAX = 2**63 - 1`
-  - `LesionRecipe.build(*, enabled, mode, strength, probability, target, block_start, block_end, step_start, step_end, lesion_seed) -> LesionRecipe` (keyword-only)
-  - fields `enabled: bool, mode: str, strength: float, probability: float, target: str, block_start: int, block_end: int, step_start: int, step_end: int, lesion_seed: int`
+  - `GlitchRecipe.build(*, enabled, mode, strength, probability, target, block_start, block_end, step_start, step_end, glitch_seed) -> GlitchRecipe` (keyword-only)
+  - fields `enabled: bool, mode: str, strength: float, probability: float, target: str, block_start: int, block_end: int, step_start: int, step_end: int, glitch_seed: int`
   - properties `families -> tuple[str, ...]`, `blocks -> range`, `site_count -> int`
   - methods `noop_reason() -> str | None`, `step_active(step: int) -> bool`, `describe() -> str`
-  - `validate_against_model(recipe: LesionRecipe, n_blocks: int) -> None`
+  - `validate_against_model(recipe: GlitchRecipe, n_blocks: int) -> None`
 - Fixture in `tests/conftest.py`: `comfy_root` (session) → `pathlib.Path`, skips if ComfyUI is absent.
 
 - [ ] **Step 1: Install pytest into this folder**
@@ -111,7 +111,7 @@ def comfy_root():
     return COMFYUI_ROOT
 ```
 
-`lesion_lab/__init__.py`:
+`glitches/__init__.py`:
 ```python
 """Core logic for ComfyUI-LesionLab. Import submodules directly; this package imports nothing."""
 ```
@@ -122,16 +122,16 @@ def comfy_root():
 ```python
 import pytest
 
-from lesion_lab.recipe import LesionRecipe, validate_against_model
+from glitches.recipe import GlitchRecipe, validate_against_model
 
 DEFAULTS = dict(
     enabled=True, mode="noise", strength=0.15, probability=0.25, target="both",
-    block_start=0, block_end=27, step_start=0, step_end=999, lesion_seed=0,
+    block_start=0, block_end=27, step_start=0, step_end=999, glitch_seed=0,
 )
 
 
 def build(**overrides):
-    return LesionRecipe.build(**{**DEFAULTS, **overrides})
+    return GlitchRecipe.build(**{**DEFAULTS, **overrides})
 
 
 def test_defaults_build_an_active_recipe():
@@ -155,8 +155,8 @@ def test_step_active_is_inclusive():
 
 def test_describe_active_recipe():
     assert build().describe() == (
-        "krea2-lesion v1 | mode=noise strength=0.15 probability=0.25 | "
-        "target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | lesion_seed=0"
+        "krea2-glitch v1 | mode=noise strength=0.15 probability=0.25 | "
+        "target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | glitch_seed=0"
     )
 
 
@@ -167,7 +167,7 @@ def test_describe_active_recipe():
 def test_noop_reasons(overrides, reason):
     recipe = build(**overrides)
     assert recipe.noop_reason() == reason
-    assert recipe.describe().startswith(f"no-op ({reason}) | krea2-lesion v1 | ")
+    assert recipe.describe().startswith(f"no-op ({reason}) | krea2-glitch v1 | ")
 
 
 @pytest.mark.parametrize(("mode", "limit"), [("dropout", 1), ("sign_flip", 1), ("amplify", 10), ("noise", 10)])
@@ -190,7 +190,7 @@ def test_strength_limit_per_mode(mode, limit):
         ({"block_start": 5, "block_end": 4}, r"block_end \(4\) must be >= block_start \(5\)"),
         ({"step_start": 3, "step_end": 2}, r"step_end \(2\) must be >= step_start \(3\)"),
         ({"step_end": 2.5}, "step_end must be an integer"),
-        ({"lesion_seed": -1}, "lesion_seed must be between 0 and 9223372036854775807"),
+        ({"glitch_seed": -1}, "glitch_seed must be between 0 and 9223372036854775807"),
     ],
 )
 def test_validation_messages(overrides, message):
@@ -207,12 +207,12 @@ def test_validate_against_model():
 - [ ] **Step 4: Run to verify failure**
 
 Run: `$PYTEST tests/test_recipe.py`
-Expected: collection error `ModuleNotFoundError: No module named 'lesion_lab.recipe'`.
+Expected: collection error `ModuleNotFoundError: No module named 'glitches.recipe'`.
 
-- [ ] **Step 5: Implement `lesion_lab/recipe.py`**
+- [ ] **Step 5: Implement `glitches/recipe.py`**
 
 ```python
-"""Validated, immutable description of one lesion experiment (no torch, no ComfyUI)."""
+"""Validated, immutable description of one glitch experiment (no torch, no ComfyUI)."""
 
 from __future__ import annotations
 
@@ -256,7 +256,7 @@ def _int_range(name, start, end):
 
 
 @dataclass(frozen=True)
-class LesionRecipe:
+class GlitchRecipe:
     enabled: bool
     mode: str
     strength: float
@@ -266,11 +266,11 @@ class LesionRecipe:
     block_end: int
     step_start: int
     step_end: int
-    lesion_seed: int
+    glitch_seed: int
 
     @classmethod
     def build(cls, *, enabled, mode, strength, probability, target,
-              block_start, block_end, step_start, step_end, lesion_seed) -> LesionRecipe:
+              block_start, block_end, step_start, step_end, glitch_seed) -> GlitchRecipe:
         if mode not in MODES:
             raise ValueError(f"mode must be one of {', '.join(MODES)}; got {mode!r}")
         if target not in TARGETS:
@@ -284,9 +284,9 @@ class LesionRecipe:
             raise ValueError(f"probability must be between 0 and 1; got {probability_value:g}")
         block_start_value, block_end_value = _int_range("block", block_start, block_end)
         step_start_value, step_end_value = _int_range("step", step_start, step_end)
-        seed = _int("lesion_seed", lesion_seed)
+        seed = _int("glitch_seed", glitch_seed)
         if not 0 <= seed <= SEED_MAX:
-            raise ValueError(f"lesion_seed must be between 0 and {SEED_MAX}; got {seed}")
+            raise ValueError(f"glitch_seed must be between 0 and {SEED_MAX}; got {seed}")
         return cls(bool(enabled), mode, strength_value, probability_value, target,
                    block_start_value, block_end_value, step_start_value, step_end_value, seed)
 
@@ -316,15 +316,15 @@ class LesionRecipe:
 
     def describe(self) -> str:
         body = (
-            f"krea2-lesion v1 | mode={self.mode} strength={self.strength:g} probability={self.probability:g} | "
+            f"krea2-glitch v1 | mode={self.mode} strength={self.strength:g} probability={self.probability:g} | "
             f"target={self.target} blocks={self.block_start}-{self.block_end} sites={self.site_count} | "
-            f"steps={self.step_start}-{self.step_end} | tokens=image | lesion_seed={self.lesion_seed}"
+            f"steps={self.step_start}-{self.step_end} | tokens=image | glitch_seed={self.glitch_seed}"
         )
         reason = self.noop_reason()
         return body if reason is None else f"no-op ({reason}) | {body}"
 
 
-def validate_against_model(recipe: LesionRecipe, n_blocks: int) -> None:
+def validate_against_model(recipe: GlitchRecipe, n_blocks: int) -> None:
     if recipe.block_end > n_blocks - 1:
         raise ValueError(f"block_end {recipe.block_end} exceeds last block {n_blocks - 1}")
 ```
@@ -337,46 +337,46 @@ Expected: all tests PASS (23 passed).
 - [ ] **Step 7: Commit**
 
 ```bash
-git add pytest.ini tests/conftest.py tests/test_recipe.py lesion_lab/__init__.py lesion_lab/recipe.py
-git commit -m "Add validated lesion recipe and test tooling" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+git add pytest.ini tests/conftest.py tests/test_recipe.py glitches/__init__.py glitches/recipe.py
+git commit -m "Add validated glitch recipe and test tooling" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```
 
 ---
 
-### Task 2: Channel selection and lesion transforms
+### Task 2: Channel selection and glitch transforms
 
 **Files:**
-- Create: `lesion_lab/lesions.py`
-- Test: `tests/test_lesions.py`
+- Create: `glitches/effects.py`
+- Test: `tests/test_effects.py`
 
 **Interfaces:**
-- Consumes: `LesionRecipe` (fields `mode`, `strength`, `probability`, `lesion_seed`) from Task 1.
-- Produces (in `lesion_lab/lesions.py`):
+- Consumes: `GlitchRecipe` (fields `mode`, `strength`, `probability`, `glitch_seed`) from Task 1.
+- Produces (in `glitches/effects.py`):
   - `FAMILY_IDS = {"attention": 0, "mlp": 1}`, `PURPOSE_SELECT = 0`, `PURPOSE_NOISE = 1`
-  - `mix_seed(lesion_seed: int, block: int, family: str, step: int, purpose: int) -> int` (0 ≤ result < 2^63)
+  - `mix_seed(glitch_seed: int, block: int, family: str, step: int, purpose: int) -> int` (0 ≤ result < 2^63)
   - `channel_count(probability: float, width: int) -> int`
   - `select_channels(recipe, block: int, family: str, step: int, width: int) -> torch.LongTensor` (CPU, length `channel_count`)
-  - `apply_lesion(out: Tensor[B, L, D], recipe, block: int, family: str, step: int, txt: int, n_img: int) -> Tensor` (new tensor, same dtype/device)
+  - `apply_glitch(out: Tensor[B, L, D], recipe, block: int, family: str, step: int, txt: int, n_img: int) -> Tensor` (new tensor, same dtype/device)
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/test_lesions.py`:
+`tests/test_effects.py`:
 ```python
 import pytest
 import torch
 
-from lesion_lab.lesions import apply_lesion, channel_count, mix_seed, select_channels
-from lesion_lab.recipe import LesionRecipe
+from glitches.effects import apply_glitch, channel_count, mix_seed, select_channels
+from glitches.recipe import GlitchRecipe
 
 TXT, N_IMG, REF, WIDTH = 3, 4, 2, 20
 IMG = slice(TXT, TXT + N_IMG)
 
 
 def recipe(mode="dropout", strength=1.0, probability=0.25, seed=7):
-    return LesionRecipe.build(
+    return GlitchRecipe.build(
         enabled=True, mode=mode, strength=strength, probability=probability, target="both",
-        block_start=0, block_end=27, step_start=0, step_end=999, lesion_seed=seed,
+        block_start=0, block_end=27, step_start=0, step_end=999, glitch_seed=seed,
     )
 
 
@@ -385,8 +385,8 @@ def activations(batch=2, seed=0, dtype=torch.float32):
     return torch.randn(batch, TXT + N_IMG + REF, WIDTH, generator=generator).to(dtype)
 
 
-def lesion(out, r, block=3, family="mlp", step=2):
-    return apply_lesion(out, r, block, family, step, TXT, N_IMG)
+def glitch(out, r, block=3, family="mlp", step=2):
+    return apply_glitch(out, r, block, family, step, TXT, N_IMG)
 
 
 def assert_text_and_reference_rows_untouched(before, after):
@@ -432,7 +432,7 @@ def test_select_channels_is_deterministic_distinct_and_site_specific():
 def test_scaling_modes_apply_their_formula_to_selected_image_channels(mode, strength, factor):
     out = activations()
     r = recipe(mode, strength)
-    result = lesion(out, r)
+    result = glitch(out, r)
     selected = select_channels(r, 3, "mlp", 2, WIDTH)
     torch.testing.assert_close(result[:, IMG][..., selected], out[:, IMG][..., selected] * factor)
     unselected = torch.ones(WIDTH, dtype=torch.bool)
@@ -444,7 +444,7 @@ def test_scaling_modes_apply_their_formula_to_selected_image_channels(mode, stre
 def test_noise_is_rms_scaled_selected_only_and_shared_across_batch():
     out = activations()
     r = recipe("noise", 0.5)
-    result = lesion(out, r)
+    result = glitch(out, r)
     selected = select_channels(r, 3, "mlp", 2, WIDTH)
     changed = torch.nonzero((result != out).any(dim=0).any(dim=0)).flatten()
     assert changed.tolist() == sorted(selected.tolist())
@@ -458,46 +458,46 @@ def test_noise_is_rms_scaled_selected_only_and_shared_across_batch():
 def test_noise_is_repeatable_and_step_specific():
     out = activations()
     r = recipe("noise", 0.5)
-    assert torch.equal(lesion(out, r, step=2), lesion(out, r, step=2))
-    assert not torch.equal(lesion(out, r, step=2), lesion(out, r, step=3))
+    assert torch.equal(glitch(out, r, step=2), glitch(out, r, step=2))
+    assert not torch.equal(glitch(out, r, step=2), glitch(out, r, step=3))
 
 
 @pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip", "noise"])
 def test_result_per_item_does_not_depend_on_batch_size(mode):
     out = activations(batch=2)
     r = recipe(mode, 0.5)
-    torch.testing.assert_close(lesion(out, r)[:1], lesion(out[:1], r), rtol=0, atol=1e-6)
+    torch.testing.assert_close(glitch(out, r)[:1], glitch(out[:1], r), rtol=0, atol=1e-6)
 
 
 def test_input_is_not_mutated():
     out = activations()
     snapshot = out.clone()
-    lesion(out, recipe("noise", 0.5))
-    lesion(out, recipe("sign_flip", 1.0))
+    glitch(out, recipe("noise", 0.5))
+    glitch(out, recipe("sign_flip", 1.0))
     assert torch.equal(out, snapshot)
 
 
 @pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
 @pytest.mark.parametrize("mode", ["dropout", "noise"])
 def test_dtype_is_preserved(dtype, mode):
-    result = lesion(activations(dtype=dtype), recipe(mode, 0.5))
+    result = glitch(activations(dtype=dtype), recipe(mode, 0.5))
     assert result.dtype == dtype
     assert torch.isfinite(result.float()).all()
 
 
 def test_full_probability_dropout_silences_every_image_channel():
     out = activations()
-    result = lesion(out, recipe("dropout", 1.0, probability=1.0))
+    result = glitch(out, recipe("dropout", 1.0, probability=1.0))
     assert torch.count_nonzero(result[:, IMG]) == 0
     assert_text_and_reference_rows_untouched(out, result)
 ```
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `$PYTEST tests/test_lesions.py`
-Expected: `ModuleNotFoundError: No module named 'lesion_lab.lesions'`.
+Run: `$PYTEST tests/test_effects.py`
+Expected: `ModuleNotFoundError: No module named 'glitches.glitches'`.
 
-- [ ] **Step 3: Implement `lesion_lab/lesions.py`**
+- [ ] **Step 3: Implement `glitches/effects.py`**
 
 ```python
 """Deterministic channel selection and activation transforms (torch only)."""
@@ -506,7 +506,7 @@ from __future__ import annotations
 
 import torch
 
-from .recipe import LesionRecipe
+from .recipe import GlitchRecipe
 
 FAMILY_IDS = {"attention": 0, "mlp": 1}
 PURPOSE_SELECT = 0
@@ -522,10 +522,10 @@ def _splitmix64(value: int) -> int:
     return value ^ (value >> 31)
 
 
-def mix_seed(lesion_seed: int, block: int, family: str, step: int, purpose: int) -> int:
+def mix_seed(glitch_seed: int, block: int, family: str, step: int, purpose: int) -> int:
     """Stable 63-bit generator seed for one site, step and purpose (independent of PYTHONHASHSEED)."""
     state = 0
-    for part in (lesion_seed, block, FAMILY_IDS[family], step, purpose):
+    for part in (glitch_seed, block, FAMILY_IDS[family], step, purpose):
         state = _splitmix64(state ^ (int(part) & _MASK64))
     return state & ((1 << 63) - 1)
 
@@ -534,13 +534,13 @@ def channel_count(probability: float, width: int) -> int:
     return min(width, max(1, round(probability * width)))
 
 
-def select_channels(recipe: LesionRecipe, block: int, family: str, step: int, width: int) -> torch.Tensor:
+def select_channels(recipe: GlitchRecipe, block: int, family: str, step: int, width: int) -> torch.Tensor:
     generator = torch.Generator(device="cpu")
-    generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_SELECT))
+    generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_SELECT))
     return torch.randperm(width, generator=generator)[: channel_count(recipe.probability, width)]
 
 
-def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
+def apply_glitch(out: torch.Tensor, recipe: GlitchRecipe, block: int, family: str, step: int,
                  txt: int, n_img: int) -> torch.Tensor:
     """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``."""
     selected = select_channels(recipe, block, family, step, out.shape[-1]).to(out.device)
@@ -550,35 +550,35 @@ def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: st
     strength = recipe.strength
 
     if recipe.mode == "dropout":
-        lesioned = values * (1.0 - strength)
+        glitched = values * (1.0 - strength)
     elif recipe.mode == "amplify":
-        lesioned = values * (1.0 + strength)
+        glitched = values * (1.0 + strength)
     elif recipe.mode == "sign_flip":
-        lesioned = values * (1.0 - 2.0 * strength)
+        glitched = values * (1.0 - 2.0 * strength)
     elif recipe.mode == "noise":
         rms = region.float().pow(2).mean(dim=-1, keepdim=True).sqrt()
         generator = torch.Generator(device=out.device)
-        generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
+        generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_NOISE))
         noise = torch.randn((n_img, selected.numel()), generator=generator, device=out.device, dtype=torch.float32)
-        lesioned = values.float() + strength * rms * noise
+        glitched = values.float() + strength * rms * noise
     else:
-        raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
+        raise ValueError(f"unsupported glitch mode: {recipe.mode!r}")
 
     result = out.clone()
-    result[:, rows, :].index_copy_(2, selected, lesioned.to(out.dtype))
+    result[:, rows, :].index_copy_(2, selected, glitched.to(out.dtype))
     return result
 ```
 
 - [ ] **Step 4: Run to verify pass**
 
-Run: `$PYTEST tests/test_lesions.py`
+Run: `$PYTEST tests/test_effects.py`
 Expected: all PASS.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lesion_lab/lesions.py tests/test_lesions.py
-git commit -m "Add deterministic channel selection and lesion transforms" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+git add glitches/effects.py tests/test_effects.py
+git commit -m "Add deterministic channel selection and glitch transforms" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```
 
@@ -587,12 +587,12 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ### Task 3: Step index from sigmas
 
 **Files:**
-- Create: `lesion_lab/steps.py`
+- Create: `glitches/steps.py`
 - Test: `tests/test_steps.py`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `step_from_sigmas(sigmas: torch.Tensor, sample_sigmas: torch.Tensor) -> int` in `lesion_lab/steps.py`. Raises `ValueError("sample_sigmas must contain at least 2 values")`.
+- Produces: `step_from_sigmas(sigmas: torch.Tensor, sample_sigmas: torch.Tensor) -> int` in `glitches/steps.py`. Raises `ValueError("sample_sigmas must contain at least 2 values")`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -601,7 +601,7 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 import pytest
 import torch
 
-from lesion_lab.steps import step_from_sigmas
+from glitches.steps import step_from_sigmas
 
 SCHEDULE = torch.tensor([1.0, 0.75, 0.5, 0.25, 0.0])
 
@@ -638,9 +638,9 @@ def test_schedule_too_short():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_steps.py`
-Expected: `ModuleNotFoundError: No module named 'lesion_lab.steps'`.
+Expected: `ModuleNotFoundError: No module named 'glitches.steps'`.
 
-- [ ] **Step 3: Implement `lesion_lab/steps.py`**
+- [ ] **Step 3: Implement `glitches/steps.py`**
 
 ```python
 """Map ComfyUI's per-call sigma to a sampling step index (torch only)."""
@@ -674,24 +674,24 @@ Expected: all PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lesion_lab/steps.py tests/test_steps.py
+git add glitches/steps.py tests/test_steps.py
 git commit -m "Add sampling step lookup from sigmas" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```
 
 ---
 
-### Task 4: Lesion wrapper and hook lifecycle
+### Task 4: Glitch wrapper and hook lifecycle
 
 **Files:**
-- Create: `lesion_lab/runtime.py`
+- Create: `glitches/runtime.py`
 - Test: `tests/test_runtime.py`
 
 **Interfaces:**
-- Consumes: `LesionRecipe.blocks`, `.families`, `.step_active()` (Task 1); `apply_lesion` (Task 2); `step_from_sigmas` (Task 3).
-- Produces (in `lesion_lab/runtime.py`):
+- Consumes: `GlitchRecipe.blocks`, `.families`, `.step_active()` (Task 1); `apply_glitch` (Task 2); `step_from_sigmas` (Task 3).
+- Produces (in `glitches/runtime.py`):
   - `image_token_count(x: torch.Tensor, patch: int) -> int` (raises `ValueError` mentioning `image latents` for non-4-D input)
-  - `class LesionWrapper(recipe)` with `__call__(executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)`. `executor.class_obj` must expose `.patch: int` and `.blocks[i].attn` / `.blocks[i].mlp` modules; `executor(...)` is called with the same positional arguments.
+  - `class GlitchWrapper(recipe)` with `__call__(executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)`. `executor.class_obj` must expose `.patch: int` and `.blocks[i].attn` / `.blocks[i].mlp` modules; `executor(...)` is called with the same positional arguments.
   - `MISSING_SIGMAS` error text containing `sample_sigmas`.
 
 - [ ] **Step 1: Write the failing tests**
@@ -702,8 +702,8 @@ import pytest
 import torch
 from torch import nn
 
-from lesion_lab.recipe import LesionRecipe
-from lesion_lab.runtime import LesionWrapper, image_token_count
+from glitches.recipe import GlitchRecipe
+from glitches.runtime import GlitchWrapper, image_token_count
 
 SCHEDULE = torch.tensor([1.0, 0.5, 0.0])
 TXT = 3
@@ -752,9 +752,9 @@ class FakeExecutor:
 
 def recipe(**overrides):
     args = dict(enabled=True, mode="dropout", strength=1.0, probability=1.0, target="both",
-                block_start=0, block_end=1, step_start=1, step_end=1, lesion_seed=0)
+                block_start=0, block_end=1, step_start=1, step_end=1, glitch_seed=0)
     args.update(overrides)
-    return LesionRecipe.build(**args)
+    return GlitchRecipe.build(**args)
 
 
 def call(wrapper, executor, sigma, options=None):
@@ -776,14 +776,14 @@ def test_video_latents_are_rejected():
 
 def test_outside_step_window_runs_untouched_without_hooks():
     executor = FakeExecutor(FakeDiT())
-    out = call(LesionWrapper(recipe()), executor, sigma=1.0)
+    out = call(GlitchWrapper(recipe()), executor, sigma=1.0)
     assert executor.seen_hooks == [0, 0]
     assert torch.all(out == 1)
 
 
-def test_inside_window_hooks_only_selected_sites_lesions_image_rows_and_cleans_up():
+def test_inside_window_hooks_only_selected_sites_glitches_image_rows_and_cleans_up():
     executor = FakeExecutor(FakeDiT())
-    out = call(LesionWrapper(recipe(target="mlp", block_start=1, block_end=1)), executor, sigma=0.5)
+    out = call(GlitchWrapper(recipe(target="mlp", block_start=1, block_end=1)), executor, sigma=0.5)
     assert executor.seen_hooks == [0, 1]
     assert torch.all(out[:, :TXT] == 1)
     assert torch.all(out[:, TXT:] == 0)
@@ -798,14 +798,14 @@ def test_hooks_are_removed_when_the_model_raises():
 
     executor = Boom(FakeDiT())
     with pytest.raises(RuntimeError, match="boom"):
-        call(LesionWrapper(recipe()), executor, sigma=0.5)
+        call(GlitchWrapper(recipe()), executor, sigma=0.5)
     assert executor.seen_hooks == [2, 2]
     assert hook_counts(executor.class_obj) == [0, 0]
 
 
 def test_missing_sample_sigmas_is_a_clear_error():
     with pytest.raises(RuntimeError, match="sample_sigmas"):
-        call(LesionWrapper(recipe()), FakeExecutor(FakeDiT()), sigma=0.5, options={"sigmas": torch.tensor([0.5])})
+        call(GlitchWrapper(recipe()), FakeExecutor(FakeDiT()), sigma=0.5, options={"sigmas": torch.tensor([0.5])})
 
 
 def test_activation_shorter_than_image_slice_is_a_clear_error():
@@ -815,19 +815,19 @@ def test_activation_shorter_than_image_slice_is_a_clear_error():
 
     executor = Short(FakeDiT())
     with pytest.raises(RuntimeError, match="unexpected attention output at block 0"):
-        call(LesionWrapper(recipe()), executor, sigma=0.5)
+        call(GlitchWrapper(recipe()), executor, sigma=0.5)
     assert hook_counts(executor.class_obj) == [0, 0]
 ```
 
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_runtime.py`
-Expected: `ModuleNotFoundError: No module named 'lesion_lab.runtime'`.
+Expected: `ModuleNotFoundError: No module named 'glitches.runtime'`.
 
-- [ ] **Step 3: Implement `lesion_lab/runtime.py`**
+- [ ] **Step 3: Implement `glitches/runtime.py`**
 
 ```python
-"""Per-call lesion wrapper for Krea2's DIFFUSION_MODEL wrapper slot (torch only, duck-typed).
+"""Per-call glitch wrapper for Krea2's DIFFUSION_MODEL wrapper slot (torch only, duck-typed).
 
 ComfyUI 0.35.1 calls DIFFUSION_MODEL wrappers from SingleStreamDiT.forward as
 ``wrapper(executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs)``
@@ -840,37 +840,37 @@ import math
 
 import torch
 
-from .lesions import apply_lesion
-from .recipe import LesionRecipe
+from .effects import apply_glitch
+from .recipe import GlitchRecipe
 from .steps import step_from_sigmas
 
 MISSING_SIGMAS = (
-    "Lesion Model (Krea2): sampler did not provide sample_sigmas; "
+    "Glitch Model (Krea2): sampler did not provide sample_sigmas; "
     "use KSampler, KSamplerAdvanced or SamplerCustom"
 )
 
 
 def image_token_count(x: torch.Tensor, patch: int) -> int:
     if x.ndim != 4:
-        raise ValueError(f"Lesion Model (Krea2) supports image latents [B, C, H, W] only; got {x.ndim}-D input")
+        raise ValueError(f"Glitch Model (Krea2) supports image latents [B, C, H, W] only; got {x.ndim}-D input")
     return math.ceil(x.shape[-2] / patch) * math.ceil(x.shape[-1] / patch)
 
 
-def _make_hook(recipe: LesionRecipe, block: int, family: str, step: int, txt: int, n_img: int):
+def _make_hook(recipe: GlitchRecipe, block: int, family: str, step: int, txt: int, n_img: int):
     def hook(module, args, output):
         if not isinstance(output, torch.Tensor) or output.ndim != 3 or output.shape[1] < txt + n_img:
             got = tuple(output.shape) if isinstance(output, torch.Tensor) else type(output).__name__
             raise RuntimeError(
-                f"Lesion Model (Krea2): unexpected {family} output at block {block}: "
+                f"Glitch Model (Krea2): unexpected {family} output at block {block}: "
                 f"expected [B, >= {txt + n_img}, D], got {got}"
             )
-        return apply_lesion(output, recipe, block, family, step, txt, n_img)
+        return apply_glitch(output, recipe, block, family, step, txt, n_img)
 
     return hook
 
 
-class LesionWrapper:
-    def __init__(self, recipe: LesionRecipe):
+class GlitchWrapper:
+    def __init__(self, recipe: GlitchRecipe):
         self.recipe = recipe
 
     def __call__(self, executor, x, timesteps, context, attention_mask, ref_latents, transformer_options, **kwargs):
@@ -904,8 +904,8 @@ Expected: all PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lesion_lab/runtime.py tests/test_runtime.py
-git commit -m "Add step-gated lesion wrapper with scoped forward hooks" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+git add glitches/runtime.py tests/test_runtime.py
+git commit -m "Add step-gated glitch wrapper with scoped forward hooks" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```
 
@@ -914,12 +914,12 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ### Task 5: ComfyUI node, registration and integration tests
 
 **Files:**
-- Create: `lesion_lab/node.py`, `__init__.py`
+- Create: `glitches/node.py`, `__init__.py`
 - Test: `tests/test_node_integration.py`, `tests/test_comfyui_loading.py`, `tests/test_real_model_header.py`
 
 **Interfaces:**
-- Consumes: `LesionRecipe.build`, `noop_reason`, `describe`, `validate_against_model`, `MODES`, `TARGETS`, `SEED_MAX` (Task 1); `LesionWrapper` (Task 4); fixture `comfy_root` (Task 1). ComfyUI (read-only): `comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL` (`"diffusion_model"`), `ModelPatcher.clone()`, `ModelPatcher.add_wrapper_with_key(type, key, fn)`, `ModelPatcher.get_wrappers(type, key)`, `comfy.ldm.krea2.model.SingleStreamDiT`.
-- Produces: `lesion_lab.node.LesionModelKrea2` with `INPUT_TYPES()`, `RETURN_TYPES`, `RETURN_NAMES`, `FUNCTION = "apply"`, `CATEGORY`, `DESCRIPTION`, and `apply(model, enabled, mode, strength, probability, target, block_start, block_end, step_start, step_end, lesion_seed) -> tuple[ModelPatcher, str]`; `lesion_lab.node.WRAPPER_KEY = "lesion_lab"`; root `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`.
+- Consumes: `GlitchRecipe.build`, `noop_reason`, `describe`, `validate_against_model`, `MODES`, `TARGETS`, `SEED_MAX` (Task 1); `GlitchWrapper` (Task 4); fixture `comfy_root` (Task 1). ComfyUI (read-only): `comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL` (`"diffusion_model"`), `ModelPatcher.clone()`, `ModelPatcher.add_wrapper_with_key(type, key, fn)`, `ModelPatcher.get_wrappers(type, key)`, `comfy.ldm.krea2.model.SingleStreamDiT`.
+- Produces: `glitches.node.GlitchModelKrea2` with `INPUT_TYPES()`, `RETURN_TYPES`, `RETURN_NAMES`, `FUNCTION = "apply"`, `CATEGORY`, `DESCRIPTION`, and `apply(model, enabled, mode, strength, probability, target, block_start, block_end, step_start, step_end, glitch_seed) -> tuple[ModelPatcher, str]`; `glitches.node.WRAPPER_KEY = "glitches"`; root `NODE_CLASS_MAPPINGS`, `NODE_DISPLAY_NAME_MAPPINGS`.
 
 - [ ] **Step 1: Write the failing integration tests**
 
@@ -942,9 +942,9 @@ def comfy(comfy_root):
 
 @pytest.fixture
 def node(comfy):
-    from lesion_lab.node import LesionModelKrea2
+    from glitches.node import GlitchModelKrea2
 
-    return LesionModelKrea2()
+    return GlitchModelKrea2()
 
 
 def make_patcher(comfy, diffusion_model):
@@ -969,7 +969,7 @@ def patcher(comfy):
 
 def apply(node, model, **overrides):
     args = dict(enabled=True, mode="dropout", strength=1.0, probability=0.5, target="both",
-                block_start=0, block_end=1, step_start=1, step_end=2, lesion_seed=7)
+                block_start=0, block_end=1, step_start=1, step_end=2, glitch_seed=7)
     args.update(overrides)
     return node.apply(model, **args)
 
@@ -995,8 +995,8 @@ def hook_count(model):
     return sum(len(b.attn._forward_hooks) + len(b.mlp._forward_hooks) for b in model.model.diffusion_model.blocks)
 
 
-def lesion_wrappers(comfy, model):
-    return model.get_wrappers(comfy[2].WrappersMP.DIFFUSION_MODEL, "lesion_lab")
+def glitch_wrappers(comfy, model):
+    return model.get_wrappers(comfy[2].WrappersMP.DIFFUSION_MODEL, "glitches")
 
 
 def test_rejects_non_krea2_model(comfy, node):
@@ -1012,23 +1012,23 @@ def test_block_end_beyond_the_model_is_rejected(node, patcher):
 def test_clone_carries_the_wrapper_and_source_stays_clean(comfy, node, patcher):
     clone, recipe = apply(node, patcher)
     assert clone is not patcher
-    assert lesion_wrappers(comfy, patcher) == []
-    assert len(lesion_wrappers(comfy, clone)) == 1
-    assert "sites=4" in recipe and recipe.startswith("krea2-lesion v1 | mode=dropout")
+    assert glitch_wrappers(comfy, patcher) == []
+    assert len(glitch_wrappers(comfy, clone)) == 1
+    assert "sites=4" in recipe and recipe.startswith("krea2-glitch v1 | mode=dropout")
 
 
 def test_noop_attaches_no_wrapper(comfy, node, patcher):
     clone, recipe = apply(node, patcher, enabled=False)
     assert recipe.startswith("no-op (disabled) | ")
-    assert lesion_wrappers(comfy, clone) == []
+    assert glitch_wrappers(comfy, clone) == []
 
 
 def test_output_changes_only_inside_the_step_window(node, patcher):
     clone, _ = apply(node, patcher)
     for sigma, inside in [(1.0, False), (0.75, True), (0.5, True), (0.25, False)]:
         base = run(patcher, sigma)
-        lesioned = run(clone, sigma)
-        assert (not torch.equal(base, lesioned)) == inside, f"sigma={sigma}"
+        glitched = run(clone, sigma)
+        assert (not torch.equal(base, glitched)) == inside, f"sigma={sigma}"
 
 
 def test_hooks_are_removed_after_success_and_after_an_exception(comfy, node, patcher):
@@ -1050,10 +1050,10 @@ def test_hooks_are_removed_after_success_and_after_an_exception(comfy, node, pat
 
 
 def test_chained_nodes_stack(comfy, node, patcher):
-    first, _ = apply(node, patcher, target="attention", block_end=0, lesion_seed=1)
-    second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, lesion_seed=2)
-    assert len(lesion_wrappers(comfy, first)) == 1
-    assert len(lesion_wrappers(comfy, second)) == 2
+    first, _ = apply(node, patcher, target="attention", block_end=0, glitch_seed=1)
+    second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, glitch_seed=2)
+    assert len(glitch_wrappers(comfy, first)) == 1
+    assert len(glitch_wrappers(comfy, second)) == 2
     base, one, two = run(patcher, 0.75), run(first, 0.75), run(second, 0.75)
     assert not torch.equal(base, one)
     assert not torch.equal(one, two)
@@ -1062,10 +1062,10 @@ def test_chained_nodes_stack(comfy, node, patcher):
 def test_reference_latent_path(node, patcher):
     clone, _ = apply(node, patcher)
     base = run(patcher, 0.75, ref=True)
-    lesioned = run(clone, 0.75, ref=True)
-    assert lesioned.shape == base.shape == (2, 4, 8, 6)
-    assert torch.isfinite(lesioned).all()
-    assert not torch.equal(base, lesioned)
+    glitched = run(clone, 0.75, ref=True)
+    assert glitched.shape == base.shape == (2, 4, 8, 6)
+    assert torch.isfinite(glitched).all()
+    assert not torch.equal(base, glitched)
 
 
 def test_missing_sample_sigmas_raises(node, patcher):
@@ -1085,7 +1085,7 @@ from pathlib import Path
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_INPUTS = [
     "model", "enabled", "mode", "strength", "probability", "target",
-    "block_start", "block_end", "step_start", "step_end", "lesion_seed",
+    "block_start", "block_end", "step_start", "step_end", "glitch_seed",
 ]
 
 
@@ -1098,16 +1098,16 @@ def test_package_imports_the_way_comfyui_loads_custom_nodes(comfy_root):
     sys.modules[sys_module_name] = module
     try:
         spec.loader.exec_module(module)
-        node_class = module.NODE_CLASS_MAPPINGS["LesionModelKrea2"]
-        assert module.NODE_DISPLAY_NAME_MAPPINGS["LesionModelKrea2"] == "Lesion Model (Krea2)"
-        assert node_class.CATEGORY == "experimental/lesion-lab"
+        node_class = module.NODE_CLASS_MAPPINGS["GlitchModelKrea2"]
+        assert module.NODE_DISPLAY_NAME_MAPPINGS["GlitchModelKrea2"] == "Glitch Model (Krea2)"
+        assert node_class.CATEGORY == "experimental/glitches"
         assert node_class.RETURN_TYPES == ("MODEL", "STRING")
         assert node_class.RETURN_NAMES == ("model", "recipe")
         required = node_class.INPUT_TYPES()["required"]
         assert list(required) == EXPECTED_INPUTS
         assert required["mode"][0] == ["dropout", "amplify", "sign_flip", "noise"]
         assert required["mode"][1]["default"] == "noise"
-        assert required["lesion_seed"][1]["max"] == 2**63 - 1
+        assert required["glitch_seed"][1]["max"] == 2**63 - 1
     finally:
         for name in [n for n in sys.modules if n == sys_module_name or n.startswith(sys_module_name + ".")]:
             del sys.modules[name]
@@ -1123,7 +1123,7 @@ import pytest
 GGUF_PATH = Path(os.environ.get("KREA2_GGUF", "/Volumes/DATA/ComfyUI/models/unet/KREA/museByStableYogi_v25GGUF.gguf"))
 
 
-def test_real_krea2_gguf_exposes_the_lesion_sites():
+def test_real_krea2_gguf_exposes_the_glitch_sites():
     if not GGUF_PATH.is_file():
         pytest.skip(f"{GGUF_PATH} not found; set KREA2_GGUF")
     gguf = pytest.importorskip("gguf")
@@ -1137,33 +1137,33 @@ def test_real_krea2_gguf_exposes_the_lesion_sites():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_node_integration.py tests/test_comfyui_loading.py tests/test_real_model_header.py`
-Expected: node and loading tests FAIL (`ModuleNotFoundError: No module named 'lesion_lab.node'` / `FileNotFoundError` for `__init__.py`); the header test PASSES already (it only reads the real file). If the node tests are SKIPPED instead, ComfyUI was not found: check `COMFYUI_ROOT` before continuing.
+Expected: node and loading tests FAIL (`ModuleNotFoundError: No module named 'glitches.node'` / `FileNotFoundError` for `__init__.py`); the header test PASSES already (it only reads the real file). If the node tests are SKIPPED instead, ComfyUI was not found: check `COMFYUI_ROOT` before continuing.
 
-- [ ] **Step 3: Implement `lesion_lab/node.py`**
+- [ ] **Step 3: Implement `glitches/node.py`**
 
 ```python
-"""ComfyUI node: Lesion Model (Krea2). The only module in this package that imports ComfyUI."""
+"""ComfyUI node: Glitch Model (Krea2). The only module in this package that imports ComfyUI."""
 
 from __future__ import annotations
 
 import comfy.patcher_extension
 from comfy.ldm.krea2.model import SingleStreamDiT
 
-from .recipe import MODES, SEED_MAX, TARGETS, LesionRecipe, validate_against_model
-from .runtime import LesionWrapper
+from .recipe import MODES, SEED_MAX, TARGETS, GlitchRecipe, validate_against_model
+from .runtime import GlitchWrapper
 
-WRAPPER_KEY = "lesion_lab"
+WRAPPER_KEY = "glitches"
 
 
-class LesionModelKrea2:
+class GlitchModelKrea2:
     DESCRIPTION = (
-        "Applies reproducible activation lesions to the image tokens of a Krea2 model during sampling. "
+        "Applies reproducible activation glitches to the image tokens of a Krea2 model during sampling. "
         "Never modifies weights or checkpoint files."
     )
     RETURN_TYPES = ("MODEL", "STRING")
     RETURN_NAMES = ("model", "recipe")
     FUNCTION = "apply"
-    CATEGORY = "experimental/lesion-lab"
+    CATEGORY = "experimental/glitches"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -1179,27 +1179,27 @@ class LesionModelKrea2:
                 "block_end": ("INT", {"default": 27, "min": 0, "max": 999}),
                 "step_start": ("INT", {"default": 0, "min": 0, "max": 10000}),
                 "step_end": ("INT", {"default": 999, "min": 0, "max": 10000}),
-                "lesion_seed": ("INT", {"default": 0, "min": 0, "max": SEED_MAX}),
+                "glitch_seed": ("INT", {"default": 0, "min": 0, "max": SEED_MAX}),
             }
         }
 
     def apply(self, model, enabled, mode, strength, probability, target,
-              block_start, block_end, step_start, step_end, lesion_seed):
+              block_start, block_end, step_start, step_end, glitch_seed):
         diffusion_model = getattr(getattr(model, "model", None), "diffusion_model", None)
         if not isinstance(diffusion_model, SingleStreamDiT):
             raise ValueError(
-                f"Lesion Model (Krea2) requires a Krea2 model; got {type(diffusion_model).__name__}"
+                f"Glitch Model (Krea2) requires a Krea2 model; got {type(diffusion_model).__name__}"
             )
-        recipe = LesionRecipe.build(
+        recipe = GlitchRecipe.build(
             enabled=enabled, mode=mode, strength=strength, probability=probability, target=target,
             block_start=block_start, block_end=block_end, step_start=step_start, step_end=step_end,
-            lesion_seed=lesion_seed,
+            glitch_seed=glitch_seed,
         )
         validate_against_model(recipe, n_blocks=len(diffusion_model.blocks))
         clone = model.clone()
         if recipe.noop_reason() is None:
             clone.add_wrapper_with_key(
-                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, LesionWrapper(recipe)
+                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, GlitchWrapper(recipe)
             )
         return (clone, recipe.describe())
 ```
@@ -1207,12 +1207,12 @@ class LesionModelKrea2:
 - [ ] **Step 4: Implement root `__init__.py`**
 
 ```python
-"""ComfyUI-LesionLab: reproducible activation lesions for Krea2 models."""
+"""ComfyUI-LesionLab: reproducible activation glitches for Krea2 models."""
 
-from .lesion_lab.node import LesionModelKrea2
+from .glitches.node import GlitchModelKrea2
 
-NODE_CLASS_MAPPINGS = {"LesionModelKrea2": LesionModelKrea2}
-NODE_DISPLAY_NAME_MAPPINGS = {"LesionModelKrea2": "Lesion Model (Krea2)"}
+NODE_CLASS_MAPPINGS = {"GlitchModelKrea2": GlitchModelKrea2}
+NODE_DISPLAY_NAME_MAPPINGS = {"GlitchModelKrea2": "Glitch Model (Krea2)"}
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
 ```
@@ -1230,8 +1230,8 @@ Expected: all PASS, 0 skipped.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add __init__.py lesion_lab/node.py tests/test_node_integration.py tests/test_comfyui_loading.py tests/test_real_model_header.py
-git commit -m "Add Lesion Model (Krea2) node with ComfyUI integration tests" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
+git add __init__.py glitches/node.py tests/test_node_integration.py tests/test_comfyui_loading.py tests/test_real_model_header.py
+git commit -m "Add Glitch Model (Krea2) node with ComfyUI integration tests" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```
 
@@ -1240,7 +1240,7 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ### Task 6: Smoke workflow, image comparison tool and README
 
 **Files:**
-- Create: `tools/compare_images.py`, `workflows/krea2-lesion-smoke.json`, `README.md`
+- Create: `tools/compare_images.py`, `workflows/krea2-glitch-smoke.json`, `README.md`
 - Test: `tests/test_compare_images.py`, `tests/test_smoke_workflow.py`
 
 **Interfaces:**
@@ -1299,10 +1299,10 @@ def test_size_mismatch():
 import json
 from pathlib import Path
 
-WORKFLOW = Path(__file__).resolve().parents[1] / "workflows" / "krea2-lesion-smoke.json"
+WORKFLOW = Path(__file__).resolve().parents[1] / "workflows" / "krea2-glitch-smoke.json"
 LESION_WIDGETS = [
     "enabled", "mode", "strength", "probability", "target",
-    "block_start", "block_end", "step_start", "step_end", "lesion_seed",
+    "block_start", "block_end", "step_start", "step_end", "glitch_seed",
 ]
 
 
@@ -1319,14 +1319,14 @@ def test_every_node_is_api_format_and_every_link_resolves():
                 assert value[0] in workflow, f"{node_id} links to missing node {value[0]}"
 
 
-def test_lesion_node_sits_between_loader_and_sampler_and_starts_disabled():
+def test_glitch_node_sits_between_loader_and_sampler_and_starts_disabled():
     workflow = load()
-    lesion_id, lesion = next((k, v) for k, v in workflow.items() if v["class_type"] == "LesionModelKrea2")
-    assert workflow[lesion["inputs"]["model"][0]]["class_type"] == "LoaderGGUF"
-    assert sorted(k for k in lesion["inputs"] if k != "model") == sorted(LESION_WIDGETS)
-    assert lesion["inputs"]["enabled"] is False
+    glitch_id, glitch = next((k, v) for k, v in workflow.items() if v["class_type"] == "GlitchModelKrea2")
+    assert workflow[glitch["inputs"]["model"][0]]["class_type"] == "LoaderGGUF"
+    assert sorted(k for k in glitch["inputs"] if k != "model") == sorted(LESION_WIDGETS)
+    assert glitch["inputs"]["enabled"] is False
     sampler = next(v for v in workflow.values() if v["class_type"] == "KSampler")
-    assert sampler["inputs"]["model"] == [lesion_id, 0]
+    assert sampler["inputs"]["model"] == [glitch_id, 0]
 ```
 
 - [ ] **Step 2: Run to verify failure**
@@ -1392,16 +1392,16 @@ if __name__ == "__main__":
     sys.exit(main(sys.argv[1:]))
 ```
 
-- [ ] **Step 4: Create `workflows/krea2-lesion-smoke.json`**
+- [ ] **Step 4: Create `workflows/krea2-glitch-smoke.json`**
 
 ```json
 {
   "1": {"class_type": "LoaderGGUF", "_meta": {"title": "Krea2 GGUF"},
         "inputs": {"gguf_name": "KREA/museByStableYogi_v25GGUF.gguf"}},
-  "2": {"class_type": "LesionModelKrea2", "_meta": {"title": "Lesion Model (Krea2)"},
+  "2": {"class_type": "GlitchModelKrea2", "_meta": {"title": "Glitch Model (Krea2)"},
         "inputs": {"model": ["1", 0], "enabled": false, "mode": "noise", "strength": 0.5, "probability": 0.25,
                    "target": "both", "block_start": 0, "block_end": 27, "step_start": 0, "step_end": 3,
-                   "lesion_seed": 0}},
+                   "glitch_seed": 0}},
   "3": {"class_type": "CLIPLoader", "_meta": {"title": "Krea2 text encoder"},
         "inputs": {"clip_name": "qwen3-vl-4b-instruct-abliterated.safetensors", "type": "krea2", "device": "default"}},
   "4": {"class_type": "CLIPTextEncode", "_meta": {"title": "Prompt"},
@@ -1420,7 +1420,7 @@ if __name__ == "__main__":
   "9": {"class_type": "VAEDecode", "_meta": {"title": "Decode"},
         "inputs": {"samples": ["7", 0], "vae": ["8", 0]}},
   "10": {"class_type": "SaveImage", "_meta": {"title": "Save"},
-         "inputs": {"images": ["9", 0], "filename_prefix": "lesionlab/smoke"}},
+         "inputs": {"images": ["9", 0], "filename_prefix": "glitchlab/smoke"}},
   "11": {"class_type": "PreviewAny", "_meta": {"title": "Recipe"},
          "inputs": {"source": ["2", 1]}}
 }
@@ -1436,7 +1436,7 @@ Expected: all PASS.
 ````markdown
 # ComfyUI-LesionLab
 
-`Lesion Model (Krea2)` damages a Krea2 model's internal activations while it generates, in a controlled
+`Glitch Model (Krea2)` damages a Krea2 model's internal activations while it generates, in a controlled
 and repeatable way, so you can see how the picture changes. It never modifies a checkpoint file or the
 model weights: remove the node and the model is back to normal.
 
@@ -1448,12 +1448,12 @@ This folder is the custom-node package. Link it into ComfyUI once, then restart 
 ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab
 ```
 
-The node appears under **experimental → lesion-lab**. Edits in this folder take effect after a restart.
+The node appears under **experimental → glitches**. Edits in this folder take effect after a restart.
 
 ## Wiring
 
 ```
-LoaderGGUF / Load Diffusion Model → Lesion Model (Krea2) → KSampler → VAE Decode → Save Image
+LoaderGGUF / Load Diffusion Model → Glitch Model (Krea2) → KSampler → VAE Decode → Save Image
 ```
 
 Works with any Krea2 model (GGUF or safetensors). Other architectures are rejected with a clear error.
@@ -1468,12 +1468,12 @@ your image metadata.
 | `mode` | `dropout`, `amplify`, `sign_flip` or `noise` (below) |
 | `strength` | Dose. 0 is always no change |
 | `probability` | Fraction of the hidden channels hit at each site (at least one channel when > 0) |
-| `target` | Lesion the output of `attention`, `mlp` or `both` in each block |
+| `target` | Glitch the output of `attention`, `mlp` or `both` in each block |
 | `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive |
 | `step_start`, `step_end` | Which sampling steps, inclusive; step 0 is the first step KSampler runs |
-| `lesion_seed` | Picks the channels and the noise. Same seed + same settings = same lesion |
+| `glitch_seed` | Picks the channels and the noise. Same seed + same settings = same glitch |
 
-Only the image being generated is lesioned. Prompt tokens, the text-fusion stage and reference images are
+Only the image being generated is glitched. Prompt tokens, the text-fusion stage and reference images are
 never touched, so the model still reads the prompt; it just draws it wrongly.
 
 At each site and step, the same randomly chosen channels are hit for every image token. With strength `s`:
@@ -1485,14 +1485,14 @@ At each site and step, the same randomly chosen channels are hit for every image
 | `sign_flip` | `x × (1 − 2s)` (0.5 = zeroed, 1 = negated) | 0–1 |
 | `noise` | `x + s × rms × Gaussian noise`, where rms is the token's own activation size | 0–10 |
 
-Steps: with 8 sampling steps, `step_start=0, step_end=3` lesions the first half, where composition is
+Steps: with 8 sampling steps, `step_start=0, step_end=3` glitches the first half, where composition is
 decided; later steps mostly affect detail and texture. With `denoise < 1` or KSampler Advanced
 `start_at_step`, step 0 is the first step actually run.
 
 ## First experiment
 
-`workflows/krea2-lesion-smoke.json` (open it with **Workflow → Open**): fixed prompt and seed,
-8 steps, lesion node set to `noise`, strength 0.5, probability 0.25, target both, blocks 0–27, steps 0–3.
+`workflows/krea2-glitch-smoke.json` (open it with **Workflow → Open**): fixed prompt and seed,
+8 steps, glitch node set to `noise`, strength 0.5, probability 0.25, target both, blocks 0–27, steps 0–3.
 
 1. Set the KSampler's *control after generate* to **fixed** if it shows `randomize`.
 2. Run with `enabled` **off** → image A.
@@ -1501,23 +1501,23 @@ decided; later steps mostly affect detail and texture. With `denoise < 1` or KSa
 5. Run with `enabled` **on** → image D.
 
 Alternate like this: ComfyUI caches results, so re-queuing identical settings returns the cached image
-instead of generating again. Then compare (images are in ComfyUI's output folder under `lesionlab/`):
+instead of generating again. Then compare (images are in ComfyUI's output folder under `glitchlab/`):
 
 ```bash
 /Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png C.png   # how much your setup varies run to run
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the lesion repeats
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the lesion's effect
+/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the glitch repeats
+/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the glitch's effect
 ```
 
 A/C and B/D should be identical, or differ no more than A/C does (Apple GPU kernels are not always
 bit-exact). A/B should differ clearly.
 
 Things to try next: `dropout` strength 1 on `mlp` only; a narrow block range such as 10–14; only late
-steps (5–7); compare `lesion_seed` 0, 1 and 2 at the same settings.
+steps (5–7); compare `glitch_seed` 0, 1 and 2 at the same settings.
 
 ## Limits
 
-- Put this node before any torch.compile node; a compiled model can skip the lesion hooks.
+- Put this node before any torch.compile node; a compiled model can skip the glitch hooks.
 - Image latents only (no video); single GPU only.
 - The loaders' own limits still apply: the installed ComfyUI-GGUF rejects GGUF files tagged with arch
   `krea2` (for example `krea2_turbo_Q4_0.gguf`); `museByStableYogi_v25GGUF.gguf` loads.
@@ -1544,7 +1544,7 @@ Expected: all PASS, 0 skipped.
 - [ ] **Step 8: Commit**
 
 ```bash
-git add tools/compare_images.py workflows/krea2-lesion-smoke.json README.md tests/test_compare_images.py tests/test_smoke_workflow.py
+git add tools/compare_images.py workflows/krea2-glitch-smoke.json README.md tests/test_compare_images.py tests/test_smoke_workflow.py
 git commit -m "Add smoke workflow, image comparison tool and README" -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>
 Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 ```

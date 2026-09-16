@@ -2,19 +2,19 @@ import random
 
 import pytest
 
-from lesion_lab.lesions import _splitmix64
-from lesion_lab.recipe import MODES, TARGETS, LesionRecipe
+from glitches.effects import _splitmix64
+from glitches.recipe import MODES, TARGETS, GlitchRecipe
 from workflow_helpers import assert_links_consistent, load_workflow, only, smoke_inputs
 
 EASY_SEED_MAX = 1125899906842624  # comfyui-easy-use py/config.py MAX_SEED_NUM
 DRIVEN_INPUTS = [
     "mode", "strength", "probability", "target",
-    "block_start", "block_end", "step_start", "step_end", "lesion_seed",
+    "block_start", "block_end", "step_start", "step_end", "glitch_seed",
 ]
 
 
 def load():
-    return load_workflow("krea2-lesion-random.json")
+    return load_workflow("krea2-glitch-random.json")
 
 
 class Graph:
@@ -56,13 +56,13 @@ class Graph:
             elif kind == "easy anythingIndexSwitch":
                 value = self.input_value(node, f"value{self.input_value(node, 'index')}")
             else:
-                raise AssertionError(f"unexpected node type upstream of the lesion node: {kind}")
+                raise AssertionError(f"unexpected node type upstream of the glitch node: {kind}")
             self.cache[key] = value
         return self.cache[key]
 
-    def lesion_inputs(self):
-        lesion = next(n for n in self.nodes.values() if n["type"] == "LesionModelKrea2")
-        return {name: self.input_value(lesion, name) for name in DRIVEN_INPUTS}
+    def glitch_inputs(self):
+        glitch = next(n for n in self.nodes.values() if n["type"] == "GlitchModelKrea2")
+        return {name: self.input_value(glitch, name) for name in DRIVEN_INPUTS}
 
 
 @pytest.fixture(scope="module")
@@ -76,9 +76,9 @@ def test_links_are_consistent_in_both_directions():
     assert_links_consistent(load())
 
 
-def test_every_lesion_input_except_enabled_is_driven():
-    lesion = only(load(), "type", "LesionModelKrea2")
-    inputs = {i["name"]: i for i in lesion["inputs"]}
+def test_every_glitch_input_except_enabled_is_driven():
+    glitch = only(load(), "type", "GlitchModelKrea2")
+    inputs = {i["name"]: i for i in glitch["inputs"]}
     assert inputs["enabled"]["link"] is None
     for name in DRIVEN_INPUTS:
         assert inputs[name]["link"] is not None, name
@@ -127,9 +127,9 @@ def test_every_master_seed_yields_a_valid_active_recipe_covering_all_choices(mat
     top_strength = {mode: 0.0 for mode in MODES}
     strengths = []
     for seed in seeds:
-        values = Graph(workflow, math_node, seed).lesion_inputs()
-        assert values["lesion_seed"] == seed
-        recipe = LesionRecipe.build(enabled=True, **values)
+        values = Graph(workflow, math_node, seed).glitch_inputs()
+        assert values["glitch_seed"] == seed
+        recipe = GlitchRecipe.build(enabled=True, **values)
         assert recipe.noop_reason() is None
         cap = 2.0 if recipe.mode in ("dropout", "sign_flip") else 4.0
         assert 0.05 <= abs(recipe.strength) <= cap, (seed, recipe)  # signed draw

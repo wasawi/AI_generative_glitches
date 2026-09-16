@@ -2,15 +2,15 @@ import random
 
 import pytest
 
-from lesion_lab.recipe import MODES, TARGETS, LesionRecipe
-from lesion_lab.shape import DISTRIBUTIONS, LesionShape
+from glitches.recipe import MODES, TARGETS, GlitchRecipe
+from glitches.shape import DISTRIBUTIONS, GlitchShape
 from workflow_helpers import assert_links_consistent, load_workflow, only, smoke_inputs
 
 EASY_SEED_MAX = 1125899906842624  # comfyui-easy-use py/config.py MAX_SEED_NUM
 MASK_SHAPES = ["circle", "square", "triangle"]  # KJNodes CreateShapeMask 'shape' options
 LESION_DRIVEN = [
     "mode", "strength", "probability", "target",
-    "block_start", "block_end", "step_start", "step_end", "lesion_seed",
+    "block_start", "block_end", "step_start", "step_end", "glitch_seed",
 ]
 SHAPE_DRIVEN = ["distribution", "spike_density", "noise_scale"]
 MASK_DRIVEN = [
@@ -20,7 +20,7 @@ MASK_DRIVEN = [
 
 
 def load():
-    return load_workflow("krea2-lesion-shape-random.json")
+    return load_workflow("krea2-glitch-shape-random.json")
 
 
 class Graph:
@@ -84,12 +84,12 @@ def test_links_are_consistent():
 
 def test_every_randomizable_input_is_driven_and_enabled_stays_manual():
     workflow = load()
-    lesion = {i["name"]: i for i in only(workflow, "type", "LesionModelKrea2")["inputs"]}
-    assert lesion["enabled"]["link"] is None
-    assert lesion["shape"]["link"] is not None
+    glitch = {i["name"]: i for i in only(workflow, "type", "GlitchModelKrea2")["inputs"]}
+    assert glitch["enabled"]["link"] is None
+    assert glitch["shape"]["link"] is not None
     for name in LESION_DRIVEN:
-        assert lesion[name]["link"] is not None, name
-    shape = {i["name"]: i for i in only(workflow, "type", "LesionShapeKrea2")["inputs"]}
+        assert glitch[name]["link"] is not None, name
+    shape = {i["name"]: i for i in only(workflow, "type", "GlitchShapeKrea2")["inputs"]}
     for name in SHAPE_DRIVEN:
         assert shape[name]["link"] is not None, name
     assert shape["step_curve"]["link"] is None and shape["block_curve"]["link"] is None
@@ -136,7 +136,7 @@ def test_switches_list_their_options_in_node_order(title, options):
     assert switch["inputs"][len(options)]["link"] is None or switch["inputs"][len(options)]["name"] == "index"
 
 
-def test_every_master_seed_yields_valid_lesion_shape_and_mask_settings(math_node):
+def test_every_master_seed_yields_valid_glitch_shape_and_mask_settings(math_node):
     workflow = load()
     rng = random.Random(20260916)
     seeds = [0, 1, EASY_SEED_MAX] + [rng.randrange(EASY_SEED_MAX + 1) for _ in range(3000)]
@@ -144,16 +144,16 @@ def test_every_master_seed_yields_valid_lesion_shape_and_mask_settings(math_node
     for seed in seeds:
         graph = Graph(workflow, math_node, seed)
 
-        lesion = graph.linked_inputs("LesionModelKrea2", LESION_DRIVEN)
-        recipe = LesionRecipe.build(enabled=True, **lesion)
+        glitch = graph.linked_inputs("GlitchModelKrea2", LESION_DRIVEN)
+        recipe = GlitchRecipe.build(enabled=True, **glitch)
         assert recipe.noop_reason() is None
         assert 0.05 <= abs(recipe.strength) <= (2.0 if recipe.mode in ("dropout", "sign_flip") else 4.0), (seed, recipe)
         assert 0.05 <= recipe.probability <= 1.0
         assert recipe.block_end <= 27 and recipe.step_end <= 7
-        assert lesion["lesion_seed"] == seed
+        assert glitch["glitch_seed"] == seed
 
-        shape_values = graph.linked_inputs("LesionShapeKrea2", SHAPE_DRIVEN)
-        shape = LesionShape.build(**shape_values)
+        shape_values = graph.linked_inputs("GlitchShapeKrea2", SHAPE_DRIVEN)
+        shape = GlitchShape.build(**shape_values)
         assert shape.distribution in DISTRIBUTIONS
         assert 0.01 <= shape.spike_density <= 0.5
         assert 1 <= shape.noise_scale <= 16
@@ -187,7 +187,7 @@ def test_distribution_and_target_are_not_correlated(math_node):
     pairs = set()
     for seed in [rng.randrange(EASY_SEED_MAX + 1) for _ in range(600)]:
         graph = Graph(workflow, math_node, seed)
-        distribution = graph.linked_inputs("LesionShapeKrea2", ["distribution"])["distribution"]
-        target = graph.linked_inputs("LesionModelKrea2", ["target"])["target"]
+        distribution = graph.linked_inputs("GlitchShapeKrea2", ["distribution"])["distribution"]
+        target = graph.linked_inputs("GlitchModelKrea2", ["target"])["target"]
         pairs.add((distribution, target))
     assert len(pairs) == len(DISTRIBUTIONS) * len(TARGETS), sorted(pairs)

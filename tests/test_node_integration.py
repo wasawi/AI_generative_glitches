@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from lesion_lab.runtime import image_token_count
+from glitches.runtime import image_token_count
 
 SCHEDULE = [1.0, 0.75, 0.5, 0.25, 0.0]
 
@@ -17,9 +17,9 @@ def comfy(comfy_root):
 
 @pytest.fixture
 def node(comfy):
-    from lesion_lab.node import LesionModelKrea2
+    from glitches.node import GlitchModelKrea2
 
-    return LesionModelKrea2()
+    return GlitchModelKrea2()
 
 
 def make_patcher(comfy, diffusion_model):
@@ -44,7 +44,7 @@ def patcher(comfy):
 
 def apply(node, model, **overrides):
     args = dict(enabled=True, mode="dropout", strength=1.0, probability=0.5, target="both",
-                block_start=0, block_end=1, step_start=1, step_end=2, lesion_seed=7)
+                block_start=0, block_end=1, step_start=1, step_end=2, glitch_seed=7)
     args.update(overrides)
     return node.apply(model, **args)
 
@@ -99,8 +99,8 @@ def hook_count(model):
     return sum(len(b.attn._forward_hooks) + len(b.mlp._forward_hooks) for b in model.model.diffusion_model.blocks)
 
 
-def lesion_wrappers(comfy, model):
-    return model.get_wrappers(comfy[2].WrappersMP.DIFFUSION_MODEL, "lesion_lab")
+def glitch_wrappers(comfy, model):
+    return model.get_wrappers(comfy[2].WrappersMP.DIFFUSION_MODEL, "glitches")
 
 
 def test_rejects_non_krea2_model(comfy, node):
@@ -119,15 +119,15 @@ def test_block_end_beyond_the_model_is_clamped_not_rejected(node, patcher):
 def test_clone_carries_the_wrapper_and_source_stays_clean(comfy, node, patcher):
     clone, recipe = apply(node, patcher)
     assert clone is not patcher
-    assert lesion_wrappers(comfy, patcher) == []
-    assert len(lesion_wrappers(comfy, clone)) == 1
-    assert "sites=4" in recipe and recipe.startswith("krea2-lesion v1 | mode=dropout")
+    assert glitch_wrappers(comfy, patcher) == []
+    assert len(glitch_wrappers(comfy, clone)) == 1
+    assert "sites=4" in recipe and recipe.startswith("krea2-glitch v1 | mode=dropout")
 
 
 def test_noop_attaches_no_wrapper(comfy, node, patcher):
     clone, recipe = apply(node, patcher, enabled=False)
     assert recipe.startswith("no-op (disabled) | ")
-    assert lesion_wrappers(comfy, clone) == []
+    assert glitch_wrappers(comfy, clone) == []
 
 
 def test_output_changes_only_inside_the_step_window(node, patcher):
@@ -136,9 +136,9 @@ def test_output_changes_only_inside_the_step_window(node, patcher):
     clone, _ = apply(node, patcher)
     for sigma, inside in [(1.0, False), (0.75, True), (0.5, True), (0.25, False)]:
         base = run(patcher, sigma)
-        lesioned = run(clone, sigma)
-        assert lesioned.shape == base.shape == (2, 4, 1, H, W)
-        assert (not torch.equal(base, lesioned)) == inside, f"sigma={sigma}"
+        glitched = run(clone, sigma)
+        assert glitched.shape == base.shape == (2, 4, 1, H, W)
+        assert (not torch.equal(base, glitched)) == inside, f"sigma={sigma}"
     assert hook_count(clone) == 0
 
 
@@ -161,10 +161,10 @@ def test_hooks_are_removed_after_success_and_after_an_exception(comfy, node, pat
 
 
 def test_chained_nodes_stack(comfy, node, patcher):
-    first, _ = apply(node, patcher, target="attention", block_end=0, lesion_seed=1)
-    second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, lesion_seed=2)
-    assert len(lesion_wrappers(comfy, first)) == 1
-    assert len(lesion_wrappers(comfy, second)) == 2
+    first, _ = apply(node, patcher, target="attention", block_end=0, glitch_seed=1)
+    second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, glitch_seed=2)
+    assert len(glitch_wrappers(comfy, first)) == 1
+    assert len(glitch_wrappers(comfy, second)) == 2
     base, one, two = run(patcher, 0.75), run(first, 0.75), run(second, 0.75)
     assert not torch.equal(base, one)
     assert not torch.equal(one, two)
@@ -173,11 +173,11 @@ def test_chained_nodes_stack(comfy, node, patcher):
 def test_reference_latent_path(node, patcher):
     # Real 5-D [B, C, 1, H, W] image latent (odd H) plus a reference latent (F1); also checks,
     # by recording block 0's own output with a forward hook the test adds and removes, that the
-    # lesion only changes the generated-image rows of the activation and leaves the text and
-    # reference-image rows bit-identical to the unlesioned run (F6). block 0's own attn/mlp are
-    # lesioned (block_start=0), so its output already reflects the lesion; block 0 operates on
+    # glitch only changes the generated-image rows of the activation and leaves the text and
+    # reference-image rows bit-identical to the unglitched run (F6). block 0's own attn/mlp are
+    # glitched (block_start=0), so its output already reflects the glitch; block 0 operates on
     # the full [text | image | reference] sequence, so this is equivalent to hooking
-    # blocks[0].mlp directly without racing the lesion wrapper's own (per-call) hook on that
+    # blocks[0].mlp directly without racing the glitch wrapper's own (per-call) hook on that
     # submodule for hook-execution order.
     clone, _ = apply(node, patcher)
     dit = patcher.model.diffusion_model
@@ -192,24 +192,24 @@ def test_reference_latent_path(node, patcher):
     try:
         for sigma, inside in [(1.0, False), (0.75, True)]:
             base = run(patcher, sigma, ref=True)
-            lesioned = run(clone, sigma, ref=True)
-            assert lesioned.shape == base.shape == (2, 4, 1, H, W)
-            assert torch.isfinite(lesioned).all()
-            assert (not torch.equal(base, lesioned)) == inside, f"sigma={sigma}"
+            glitched = run(clone, sigma, ref=True)
+            assert glitched.shape == base.shape == (2, 4, 1, H, W)
+            assert torch.isfinite(glitched).all()
+            assert (not torch.equal(base, glitched)) == inside, f"sigma={sigma}"
     finally:
         handle.remove()
     assert hook_count(clone) == 0
 
-    # captured holds, in order, [base(1.0), lesioned(1.0), base(0.75), lesioned(0.75)]; use the
+    # captured holds, in order, [base(1.0), glitched(1.0), base(0.75), glitched(0.75)]; use the
     # inside-window (0.75) pair.
-    base_act, lesioned_act = captured[2], captured[3]
+    base_act, glitched_act = captured[2], captured[3]
     txt = 5
     n_img = image_token_count(torch.zeros(2, 4, 1, H, W), dit.patch)
     n_ref = image_token_count(torch.zeros(1, 4, H, W), dit.patch)
-    assert base_act.shape[1] == lesioned_act.shape[1] == txt + n_img + n_ref
-    assert torch.equal(base_act[:, :txt], lesioned_act[:, :txt])  # text rows unchanged
-    assert torch.equal(base_act[:, txt + n_img:], lesioned_act[:, txt + n_img:])  # reference rows unchanged
-    assert not torch.equal(base_act[:, txt:txt + n_img], lesioned_act[:, txt:txt + n_img])  # image rows differ
+    assert base_act.shape[1] == glitched_act.shape[1] == txt + n_img + n_ref
+    assert torch.equal(base_act[:, :txt], glitched_act[:, :txt])  # text rows unchanged
+    assert torch.equal(base_act[:, txt + n_img:], glitched_act[:, txt + n_img:])  # reference rows unchanged
+    assert not torch.equal(base_act[:, txt:txt + n_img], glitched_act[:, txt:txt + n_img])  # image rows differ
 
 
 def test_missing_sample_sigmas_raises(node, patcher):
@@ -235,7 +235,7 @@ def test_wrappers_reach_transformer_options_through_comfys_own_merge(comfy, node
     model_options = {"transformer_options": {}}
     sampler_helpers.prepare_model_patcher(clone, {}, model_options)
     merged_wrappers = model_options["transformer_options"]["wrappers"]
-    assert "lesion_lab" in merged_wrappers.get(patcher_extension.WrappersMP.DIFFUSION_MODEL, {})
+    assert "glitches" in merged_wrappers.get(patcher_extension.WrappersMP.DIFFUSION_MODEL, {})
 
     dit = clone.model.diffusion_model
     generator = torch.Generator().manual_seed(1)
@@ -244,11 +244,11 @@ def test_wrappers_reach_transformer_options_through_comfys_own_merge(comfy, node
     sigmas = torch.full((2,), 0.75)
     sample_sigmas = torch.tensor(SCHEDULE)
 
-    lesioned_options = dict(model_options["transformer_options"])
-    lesioned_options["sigmas"] = sigmas
-    lesioned_options["sample_sigmas"] = sample_sigmas
+    glitched_options = dict(model_options["transformer_options"])
+    glitched_options["sigmas"] = sigmas
+    glitched_options["sample_sigmas"] = sample_sigmas
     with torch.no_grad():
-        lesioned = dit(x, sigmas, context, transformer_options=lesioned_options)
+        glitched = dit(x, sigmas, context, transformer_options=glitched_options)
         baseline = dit(x, sigmas, context, transformer_options={"sigmas": sigmas, "sample_sigmas": sample_sigmas})
-    assert not torch.equal(lesioned, baseline)
+    assert not torch.equal(glitched, baseline)
     assert hook_count(clone) == 0

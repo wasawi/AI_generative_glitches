@@ -3,7 +3,7 @@ import math
 import pytest
 import torch
 
-from lesion_lab.shape import CAUCHY_CLIP, LesionShape
+from glitches.shape import CAUCHY_CLIP, GlitchShape
 
 CPU = torch.device("cpu")
 
@@ -11,7 +11,7 @@ CPU = torch.device("cpu")
 def build(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 def draw(distribution, k=4, h=250, w=200, scale=1, density=0.05, seed=0):

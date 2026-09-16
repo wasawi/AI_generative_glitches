@@ -1,13 +1,13 @@
 import pytest
 import torch
 
-from lesion_lab.shape import DISTRIBUTIONS, LesionShape, curve_at
+from glitches.shape import DISTRIBUTIONS, GlitchShape, curve_at
 
 
 def build(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 class HasToList:

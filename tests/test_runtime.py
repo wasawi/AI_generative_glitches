@@ -2,8 +2,8 @@ import pytest
 import torch
 from torch import nn
 
-from lesion_lab.recipe import LesionRecipe
-from lesion_lab.runtime import LesionWrapper, image_token_count
+from glitches.recipe import GlitchRecipe
+from glitches.runtime import GlitchWrapper, image_token_count
 
 SCHEDULE = torch.tensor([1.0, 0.5, 0.0])
 TXT = 3
@@ -52,9 +52,9 @@ class FakeExecutor:
 
 def recipe(**overrides):
     args = dict(enabled=True, mode="dropout", strength=1.0, probability=1.0, target="both",
-                block_start=0, block_end=1, step_start=1, step_end=1, lesion_seed=0)
+                block_start=0, block_end=1, step_start=1, step_end=1, glitch_seed=0)
     args.update(overrides)
-    return LesionRecipe.build(**args)
+    return GlitchRecipe.build(**args)
 
 
 def call(wrapper, executor, sigma, options=None):
@@ -88,14 +88,14 @@ def test_3d_latents_are_rejected():
 
 def test_outside_step_window_runs_untouched_without_hooks():
     executor = FakeExecutor(FakeDiT())
-    out = call(LesionWrapper(recipe()), executor, sigma=1.0)
+    out = call(GlitchWrapper(recipe()), executor, sigma=1.0)
     assert executor.seen_hooks == [0, 0]
     assert torch.all(out == 1)
 
 
-def test_inside_window_hooks_only_selected_sites_lesions_image_rows_and_cleans_up():
+def test_inside_window_hooks_only_selected_sites_glitches_image_rows_and_cleans_up():
     executor = FakeExecutor(FakeDiT())
-    out = call(LesionWrapper(recipe(target="mlp", block_start=1, block_end=1)), executor, sigma=0.5)
+    out = call(GlitchWrapper(recipe(target="mlp", block_start=1, block_end=1)), executor, sigma=0.5)
     assert executor.seen_hooks == [0, 1]
     assert torch.all(out[:, :TXT] == 1)
     assert torch.all(out[:, TXT:] == 0)
@@ -110,14 +110,14 @@ def test_hooks_are_removed_when_the_model_raises():
 
     executor = Boom(FakeDiT())
     with pytest.raises(RuntimeError, match="boom"):
-        call(LesionWrapper(recipe()), executor, sigma=0.5)
+        call(GlitchWrapper(recipe()), executor, sigma=0.5)
     assert executor.seen_hooks == [2, 2]
     assert hook_counts(executor.class_obj) == [0, 0]
 
 
 def test_missing_sample_sigmas_is_a_clear_error():
     with pytest.raises(RuntimeError, match="sample_sigmas"):
-        call(LesionWrapper(recipe()), FakeExecutor(FakeDiT()), sigma=0.5, options={"sigmas": torch.tensor([0.5])})
+        call(GlitchWrapper(recipe()), FakeExecutor(FakeDiT()), sigma=0.5, options={"sigmas": torch.tensor([0.5])})
 
 
 def test_activation_shorter_than_image_slice_is_a_clear_error():
@@ -127,20 +127,20 @@ def test_activation_shorter_than_image_slice_is_a_clear_error():
 
     executor = Short(FakeDiT())
     with pytest.raises(RuntimeError, match="unexpected attention output at block 0"):
-        call(LesionWrapper(recipe()), executor, sigma=0.5)
+        call(GlitchWrapper(recipe()), executor, sigma=0.5)
     assert hook_counts(executor.class_obj) == [0, 0]
 
 
 def test_image_token_grid_returns_height_and_width():
-    from lesion_lab.runtime import image_token_grid
+    from glitches.runtime import image_token_grid
 
     assert image_token_grid(torch.zeros(1, 4, 5, 6), 2) == (3, 3)
     assert image_token_grid(torch.zeros(1, 4, 1, 5, 6), 2) == (3, 3)
 
 
 def test_wrapper_passes_shape_grid_step_and_block_counts(monkeypatch):
-    import lesion_lab.runtime as runtime
-    from lesion_lab.shape import LesionShape
+    import glitches.runtime as runtime
+    from glitches.shape import GlitchShape
 
     seen = []
 
@@ -148,7 +148,7 @@ def test_wrapper_passes_shape_grid_step_and_block_counts(monkeypatch):
         seen.append((block, family, step, txt, n_img, kwargs))
         return output
 
-    monkeypatch.setattr(runtime, "apply_lesion", spy)
-    s = LesionShape.build("gaussian", 0.05, 1)
-    call(LesionWrapper(recipe(target="mlp", block_start=1, block_end=1), s), FakeExecutor(FakeDiT()), sigma=0.5)
+    monkeypatch.setattr(runtime, "apply_glitch", spy)
+    s = GlitchShape.build("gaussian", 0.05, 1)
+    call(GlitchWrapper(recipe(target="mlp", block_start=1, block_end=1), s), FakeExecutor(FakeDiT()), sigma=0.5)
     assert seen == [(1, "mlp", 1, TXT, 6, {"shape": s, "grid": (2, 3), "n_steps": 2, "n_blocks": 2})]

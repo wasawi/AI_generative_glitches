@@ -1,21 +1,21 @@
-# Lesion Shape — design
+# Glitch Shape — design
 
 Status: approved in brainstorming, 2026-09-15. Extends
-`docs/superpowers/specs/2026-09-14-krea2-lesion-lab-design.md` (the base spec); everything
+`docs/superpowers/specs/2026-09-14-krea2-glitch-lab-design.md` (the base spec); everything
 not changed here stays as the base spec defines it.
 
 ## Purpose
 
-Give finer, graphical control over a lesion by reusing ComfyUI's existing interactive editor
+Give finer, graphical control over a glitch by reusing ComfyUI's existing interactive editor
 nodes instead of writing new frontend code:
 
 - **Value distribution** of the noise mode (not only Gaussian).
-- **Spatial pattern**: where on the picture the lesion acts, and how smooth the noise field is.
-- **Curves** of lesion strength across sampling steps and across the model's blocks.
+- **Spatial pattern**: where on the picture the glitch acts, and how smooth the noise field is.
+- **Curves** of glitch strength across sampling steps and across the model's blocks.
 
 ## Scope
 
-In: a new node `Lesion Shape (Krea2)`; a new optional `shape` input on `Lesion Model (Krea2)`;
+In: a new node `Glitch Shape (Krea2)`; a new optional `shape` input on `Glitch Model (Krea2)`;
 curves from any node that outputs a FLOAT value or list (e.g. KJNodes `Spline Editor`);
 masks from any node that outputs `MASK` (KJNodes `CreateShapeMask`, `CreateGradientMask`,
 `CreateVoronoiMask`, `CreateFluidMask`, core mask editor / `Load Image` mask); an example workflow.
@@ -24,14 +24,14 @@ Out: channel-structure controls; new JavaScript widgets or live previews; change
 and random workflows; dtype-aware strength limits.
 
 Constraints from the base spec still hold: all writes stay in this repository; ComfyUI and other
-custom nodes are read-only; only `lesion_lab/node.py` imports `comfy`; relative imports only.
+custom nodes are read-only; only `glitches/node.py` imports `comfy`; relative imports only.
 
 ## Nodes
 
-### `Lesion Shape (Krea2)`
+### `Glitch Shape (Krea2)`
 
-Class and registry key `LesionShapeKrea2`, display name `Lesion Shape (Krea2)`, category
-`experimental/lesion-lab`, `FUNCTION = "build"`, `RETURN_TYPES = ("LESION_SHAPE",)`,
+Class and registry key `GlitchShapeKrea2`, display name `Glitch Shape (Krea2)`, category
+`experimental/glitches`, `FUNCTION = "build"`, `RETURN_TYPES = ("GLITCH_SHAPE",)`,
 `RETURN_NAMES = ("shape",)`.
 
 | Input | Kind | Default | Range | Meaning |
@@ -48,15 +48,15 @@ flattened, as KJNodes' own float nodes do), a `torch.Tensor` (flattened), or any
 `tolist()` method (e.g. a pandas Series). Values outside 0–1 are allowed: above 1 boosts, negative
 reverses a mode's effect.
 
-### `Lesion Model (Krea2)` change
+### `Glitch Model (Krea2)` change
 
-One new optional input `shape` (`LESION_SHAPE`). Adding a link-only optional input does not change
+One new optional input `shape` (`GLITCH_SHAPE`). Adding a link-only optional input does not change
 the node's widget order, so existing workflows and saved PNGs are unaffected.
 
 - Not connected: behaviour, output and recipe string are exactly as in the base spec (bit-identical).
-- Connected: the node attaches `LesionWrapper(recipe, shape)`; the no-op rules of the base spec are
+- Connected: the node attaches `GlitchWrapper(recipe, shape)`; the no-op rules of the base spec are
   unchanged (a shape never turns a no-op recipe into an active one).
-- A value that is not a `LesionShape` raises `TypeError("shape must come from a Lesion Shape (Krea2) node")`.
+- A value that is not a `GlitchShape` raises `TypeError("shape must come from a Glitch Shape (Krea2) node")`.
 
 ### Recipe string with a shape
 
@@ -69,13 +69,13 @@ The base recipe string is followed by one segment:
 `-` marks an unconnected input; `mask=FxHxW`. When the recipe's mode is not `noise`, the segment
 ends with ` (dist/density/scale unused in mode <mode>)`.
 
-## Data model: `LesionShape`
+## Data model: `GlitchShape`
 
-`lesion_lab/shape.py`, torch only, no ComfyUI.
+`glitches/shape.py`, torch only, no ComfyUI.
 
 ```
 @dataclass(frozen=True, eq=False)
-class LesionShape:
+class GlitchShape:
     distribution: str
     spike_density: float
     noise_scale: int
@@ -87,7 +87,7 @@ class LesionShape:
 
 `eq=False` because a tensor field has no single-boolean equality; identity comparison is enough.
 
-`LesionShape.build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None,
+`GlitchShape.build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None,
 spatial_mask=None)` validates and normalizes (2-D mask → one frame). A `ValueError` names the field:
 
 | Condition | Message starts with |
@@ -162,17 +162,17 @@ every distribution — `cauchy` included — unit-RMS, and can leave an all-zero
 
 - `image_token_grid(x, patch) -> (h, w)` computes the grid from 4-D or single-frame 5-D latents with the
   base spec's rules; `image_token_count` returns `h·w`.
-- `LesionWrapper(recipe, shape=None)`; per call it additionally computes `n_steps = len(sample_sigmas) − 1`,
-  the grid `(h, w)`, and `n_blocks = len(dit.blocks)`, and passes them with `shape` to `apply_lesion`.
-- `apply_lesion(out, recipe, block, family, step, txt, n_img, *, shape=None, grid=None, n_steps=None, n_blocks=None)`:
+- `GlitchWrapper(recipe, shape=None)`; per call it additionally computes `n_steps = len(sample_sigmas) − 1`,
+  the grid `(h, w)`, and `n_blocks = len(dit.blocks)`, and passes them with `shape` to `apply_glitch`.
+- `apply_glitch(out, recipe, block, family, step, txt, n_img, *, shape=None, grid=None, n_steps=None, n_blocks=None)`:
   with `shape is None` it is exactly the base implementation.
 
 ## Errors summary
 
 | Situation | Behaviour |
 |---|---|
-| Invalid Lesion Shape input | `ValueError` when the shape node runs, message names the field |
-| `shape` input not a `LesionShape` | `TypeError` when the lesion node runs |
+| Invalid Glitch Shape input | `ValueError` when the shape node runs, message names the field |
+| `shape` input not a `GlitchShape` | `TypeError` when the glitch node runs |
 | Anything during sampling | No new failure paths; base spec errors unchanged |
 
 ## Testing
@@ -180,7 +180,7 @@ every distribution — `cauchy` included — unit-RMS, and can leave an all-zero
 Commands and tooling as in the base spec (`$PYTEST tests`, pytest in `./.test-deps`, no `tmp_path`).
 
 Unit (no ComfyUI):
-- `LesionShape.build`: every validation message; curve normalization from number, list, nested list,
+- `GlitchShape.build`: every validation message; curve normalization from number, list, nested list,
   tuple, tensor, and an object with `tolist()`; 2-D mask becomes one frame.
 - `curve_at`: exact values for lengths 1, 2 and 16 over 8 steps and 28 blocks, endpoints hit exactly.
 - `token_mask`: frame selection across steps for 1, 3 and 16 frames; resize to a non-square grid;
@@ -188,31 +188,31 @@ Unit (no ComfyUI):
 - `draw_noise`: RMS within 5 % of 1 over ≥ 200k samples for gaussian, uniform, laplace, spikes, binary;
   spikes non-zero fraction within 10 % of the density; cauchy bounded by ±20; `noise_scale = 4`
   output is smooth (neighbouring tokens correlate) and has per-channel RMS 1; deterministic per generator seed.
-- `apply_lesion`: no shape → bit-identical to the base result; all-ones shape (curves `[1.0]`,
+- `apply_glitch`: no shape → bit-identical to the base result; all-ones shape (curves `[1.0]`,
   mask of ones) → matches the no-shape result within float tolerance (`assert_close`) for dropout,
   amplify and sign_flip (the shape path does its arithmetic in float32, so the last bit may differ); zero step
-  multiplier or all-zero mask → bit-identical to the unlesioned activation; left-half mask → right-half
+  multiplier or all-zero mask → bit-identical to the unglitched activation; left-half mask → right-half
   image tokens unchanged.
 - Recipe segment format, including the "unused in mode" suffix.
 
 Integration (real ComfyUI read-only, tiny real `SingleStreamDiT`, latents from
 `comfy.sample.fix_empty_latent_channels`):
-- Shape node output type and registration; `shape` is optional on the lesion node.
+- Shape node output type and registration; `shape` is optional on the glitch node.
 - Left-half mask: only left-half image tokens differ from baseline (recording hook on a block).
 - Step curve with 0 at some steps: those steps' outputs bit-identical to baseline.
-- One shape shared by two chained lesion nodes.
+- One shape shared by two chained glitch nodes.
 - Wrong `shape` type → `TypeError`.
 
-Example workflow structure test: links consistent, `Lesion Shape` wired into the lesion node's
+Example workflow structure test: links consistent, `Glitch Shape` wired into the glitch node's
 `shape` input, `CreateShapeMask` wired into `spatial_mask`, loaders and sampler equal to the smoke workflow.
 
 ## Documentation and example
 
-- README section "Shaping the lesion": the node's inputs, the mapping rules in plain words, and wiring
+- README section "Shaping the glitch": the node's inputs, the mapping rules in plain words, and wiring
   recipes (Spline Editor → `step_curve`/`block_curve` with `points_to_sample` = steps or 28; a mask
   node → `spatial_mask`; multi-frame masks play across steps).
-- `workflows/krea2-lesion-shape.json`: the smoke workflow plus `Lesion Shape` (`spikes`, density 0.05,
-  `noise_scale` 4) with KJNodes `CreateShapeMask` feeding `spatial_mask`; lesion mode `noise`. The
+- `workflows/krea2-glitch-shape.json`: the smoke workflow plus `Glitch Shape` (`spikes`, density 0.05,
+  `noise_scale` 4) with KJNodes `CreateShapeMask` feeding `spatial_mask`; glitch mode `noise`. The
   Spline Editor is not pre-placed (its curve lives in a JavaScript widget with no known-good saved
   state to copy); the README explains adding it.
 
@@ -220,5 +220,5 @@ Example workflow structure test: links consistent, `Lesion Shape` wired into the
 
 - Very large curve or mask values multiply strength further; the base spec's float16 overflow note applies.
 - Masks with a different aspect ratio than the image are stretched to the token grid.
-- KJNodes' node names or outputs may change in future versions; the lesion nodes only depend on the
+- KJNodes' node names or outputs may change in future versions; the glitch nodes only depend on the
   generic `FLOAT` and `MASK` types.

@@ -178,7 +178,7 @@
   },
   {
    "id": 3,
-   "type": "LesionShapeKrea2",
+   "type": "GlitchShapeKrea2",
    "pos": [
     100,
     470
@@ -191,7 +191,7 @@
    "order": 2,
    "mode": 0,
    "properties": {
-    "Node name for S&R": "LesionShapeKrea2"
+    "Node name for S&R": "GlitchShapeKrea2"
    },
    "inputs": [
     {
@@ -247,13 +247,13 @@
     {
      "localized_name": "shape",
      "name": "shape",
-     "type": "LESION_SHAPE",
+     "type": "GLITCH_SHAPE",
      "links": [
       3
      ]
     }
    ],
-   "title": "Lesion Shape (Krea2)",
+   "title": "Glitch Shape (Krea2)",
    "widgets_values": [
     "spikes",
     0.05,
@@ -262,7 +262,7 @@
   },
   {
    "id": 4,
-   "type": "LesionModelKrea2",
+   "type": "GlitchModelKrea2",
    "pos": [
     470,
     130
@@ -275,7 +275,7 @@
    "order": 3,
    "mode": 0,
    "properties": {
-    "Node name for S&R": "LesionModelKrea2"
+    "Node name for S&R": "GlitchModelKrea2"
    },
    "inputs": [
     {
@@ -366,18 +366,18 @@
      }
     },
     {
-     "localized_name": "lesion_seed",
-     "name": "lesion_seed",
+     "localized_name": "glitch_seed",
+     "name": "glitch_seed",
      "type": "INT",
      "link": null,
      "widget": {
-      "name": "lesion_seed"
+      "name": "glitch_seed"
      }
     },
     {
      "localized_name": "shape",
      "name": "shape",
-     "type": "LESION_SHAPE",
+     "type": "GLITCH_SHAPE",
      "link": 3,
      "shape": 7
     }
@@ -400,7 +400,7 @@
      ]
     }
    ],
-   "title": "Lesion Model (Krea2)",
+   "title": "Glitch Model (Krea2)",
    "widgets_values": [
     true,
     "noise",
@@ -868,7 +868,7 @@
    "outputs": [],
    "title": "Save",
    "widgets_values": [
-    "lesionlab/shape"
+    "glitchlab/shape"
    ]
   },
   {
@@ -931,7 +931,7 @@
    0,
    4,
    11,
-   "LESION_SHAPE"
+   "GLITCH_SHAPE"
   ],
   [
    4,

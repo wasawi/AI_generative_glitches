@@ -1,15 +1,15 @@
 import pytest
 
-from lesion_lab.recipe import LesionRecipe, clamp_to_model
+from glitches.recipe import GlitchRecipe, clamp_to_model
 
 DEFAULTS = dict(
     enabled=True, mode="noise", strength=0.15, probability=0.25, target="both",
-    block_start=0, block_end=27, step_start=0, step_end=999, lesion_seed=0,
+    block_start=0, block_end=27, step_start=0, step_end=999, glitch_seed=0,
 )
 
 
 def build(**overrides):
-    return LesionRecipe.build(**{**DEFAULTS, **overrides})
+    return GlitchRecipe.build(**{**DEFAULTS, **overrides})
 
 
 def test_defaults_build_an_active_recipe():
@@ -33,8 +33,8 @@ def test_step_active_is_inclusive():
 
 def test_describe_active_recipe():
     assert build().describe() == (
-        "krea2-lesion v1 | mode=noise strength=0.15 probability=0.25 | "
-        "target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | lesion_seed=0"
+        "krea2-glitch v1 | mode=noise strength=0.15 probability=0.25 | "
+        "target=both blocks=0-27 sites=56 | steps=0-999 | tokens=image | glitch_seed=0"
     )
 
 
@@ -45,7 +45,7 @@ def test_describe_active_recipe():
 def test_noop_reasons(overrides, reason):
     recipe = build(**overrides)
     assert recipe.noop_reason() == reason
-    assert recipe.describe().startswith(f"no-op ({reason}) | krea2-lesion v1 | ")
+    assert recipe.describe().startswith(f"no-op ({reason}) | krea2-glitch v1 | ")
 
 
 @pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip", "noise"])
@@ -71,7 +71,7 @@ def test_strength_accepts_any_finite_value_including_negatives(mode):
         ({"block_start": 5, "block_end": 4}, r"block_end \(4\) must be >= block_start \(5\)"),
         ({"step_start": 3, "step_end": 2}, r"step_end \(2\) must be >= step_start \(3\)"),
         ({"step_end": 2.5}, "step_end must be an integer"),
-        ({"lesion_seed": -1}, "lesion_seed must be between 0 and 9223372036854775807"),
+        ({"glitch_seed": -1}, "glitch_seed must be between 0 and 9223372036854775807"),
     ],
 )
 def test_validation_messages(overrides, message):

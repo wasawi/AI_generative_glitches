@@ -6,7 +6,7 @@ import pytest
 GGUF_PATH = Path(os.environ.get("KREA2_GGUF", "/Volumes/DATA/ComfyUI/models/unet/KREA/museByStableYogi_v25GGUF.gguf"))
 
 
-def test_real_krea2_gguf_exposes_the_lesion_sites():
+def test_real_krea2_gguf_exposes_the_glitch_sites():
     if not GGUF_PATH.is_file():
         pytest.skip(f"{GGUF_PATH} not found; set KREA2_GGUF")
     gguf = pytest.importorskip("gguf")

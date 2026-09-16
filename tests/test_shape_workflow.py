@@ -2,7 +2,7 @@ from workflow_helpers import assert_links_consistent, load_workflow, only, smoke
 
 
 def load():
-    return load_workflow("krea2-lesion-shape.json")
+    return load_workflow("krea2-glitch-shape.json")
 
 
 def source_of(workflow, node, input_name):
@@ -18,17 +18,17 @@ def test_links_are_consistent():
     assert_links_consistent(load())
 
 
-def test_shape_node_feeds_the_lesion_node_and_the_mask_feeds_the_shape():
+def test_shape_node_feeds_the_glitch_node_and_the_mask_feeds_the_shape():
     workflow = load()
-    lesion = only(workflow, "type", "LesionModelKrea2")
-    shape = only(workflow, "type", "LesionShapeKrea2")
-    assert source_of(workflow, lesion, "shape") == (shape, 0)
+    glitch = only(workflow, "type", "GlitchModelKrea2")
+    shape = only(workflow, "type", "GlitchShapeKrea2")
+    assert source_of(workflow, glitch, "shape") == (shape, 0)
     mask_node, mask_slot = source_of(workflow, shape, "spatial_mask")
     assert mask_node["type"] == "CreateShapeMask" and mask_slot == 0
     unlinked = {i["name"]: i["link"] for i in shape["inputs"]}
     assert unlinked["step_curve"] is None and unlinked["block_curve"] is None
     assert shape["widgets_values"] == ["spikes", 0.05, 4]
-    assert lesion["widgets_values"][:2] == [True, "noise"]
+    assert glitch["widgets_values"][:2] == [True, "noise"]
 
 
 def test_loaders_and_sampler_match_the_smoke_workflow():

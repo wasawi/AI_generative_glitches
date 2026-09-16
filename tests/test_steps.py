@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from lesion_lab.steps import step_from_sigmas
+from glitches.steps import step_from_sigmas
 
 SCHEDULE = torch.tensor([1.0, 0.75, 0.5, 0.25, 0.0])
 

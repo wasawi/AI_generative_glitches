@@ -1,4 +1,4 @@
-"""Optional lesion shaping: noise distribution, spatial mask and step/block curves (torch only)."""
+"""Optional glitch shaping: noise distribution, spatial mask and step/block curves (torch only)."""
 
 from __future__ import annotations
 
@@ -64,7 +64,7 @@ def curve_at(curve: tuple[float, ...], index: int, count: int) -> float:
 
 
 @dataclass(frozen=True, eq=False)
-class LesionShape:
+class GlitchShape:
     distribution: str
     spike_density: float
     noise_scale: int
@@ -75,7 +75,7 @@ class LesionShape:
 
     @classmethod
     def build(cls, distribution, spike_density, noise_scale, step_curve=None, block_curve=None,
-              spatial_mask=None) -> LesionShape:
+              spatial_mask=None) -> GlitchShape:
         if distribution not in DISTRIBUTIONS:
             raise ValueError(f"distribution must be one of {', '.join(DISTRIBUTIONS)}; got {distribution!r}")
         try:
@@ -112,7 +112,7 @@ class LesionShape:
             # Unbounded by design: entries accumulate for every distinct (frame, h, w, device)
             # seen, bounded in practice only by (frames × grids × devices). A many-frame mask
             # (KJNodes allows up to 4096) can therefore pin a resized copy per frame in memory
-            # until this shape node re-executes and a fresh LesionShape (and cache) is built.
+            # until this shape node re-executes and a fresh GlitchShape (and cache) is built.
             resized = F.interpolate(
                 self.spatial_mask[frame][None, None], size=(h, w), mode="bilinear", align_corners=False, antialias=True
             )

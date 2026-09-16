@@ -1,10 +1,10 @@
 import json
 from pathlib import Path
 
-WORKFLOW = Path(__file__).resolve().parents[1] / "workflows" / "krea2-lesion-smoke.json"
+WORKFLOW = Path(__file__).resolve().parents[1] / "workflows" / "krea2-glitch-smoke.json"
 LESION_WIDGETS = [
     "enabled", "mode", "strength", "probability", "target",
-    "block_start", "block_end", "step_start", "step_end", "lesion_seed",
+    "block_start", "block_end", "step_start", "step_end", "glitch_seed",
 ]
 
 
@@ -21,11 +21,11 @@ def test_every_node_is_api_format_and_every_link_resolves():
                 assert value[0] in workflow, f"{node_id} links to missing node {value[0]}"
 
 
-def test_lesion_node_sits_between_loader_and_sampler_and_starts_disabled():
+def test_glitch_node_sits_between_loader_and_sampler_and_starts_disabled():
     workflow = load()
-    lesion_id, lesion = next((k, v) for k, v in workflow.items() if v["class_type"] == "LesionModelKrea2")
-    assert workflow[lesion["inputs"]["model"][0]]["class_type"] == "LoaderGGUF"
-    assert sorted(k for k in lesion["inputs"] if k != "model") == sorted(LESION_WIDGETS)
-    assert lesion["inputs"]["enabled"] is False
+    glitch_id, glitch = next((k, v) for k, v in workflow.items() if v["class_type"] == "GlitchModelKrea2")
+    assert workflow[glitch["inputs"]["model"][0]]["class_type"] == "LoaderGGUF"
+    assert sorted(k for k in glitch["inputs"] if k != "model") == sorted(LESION_WIDGETS)
+    assert glitch["inputs"]["enabled"] is False
     sampler = next(v for v in workflow.values() if v["class_type"] == "KSampler")
-    assert sampler["inputs"]["model"] == [lesion_id, 0]
+    assert sampler["inputs"]["model"] == [glitch_id, 0]

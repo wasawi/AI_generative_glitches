@@ -1,10 +1,10 @@
 {
   "1": {"class_type": "LoaderGGUF", "_meta": {"title": "Krea2 GGUF"},
         "inputs": {"gguf_name": "KREA/museByStableYogi_v25GGUF.gguf"}},
-  "2": {"class_type": "LesionModelKrea2", "_meta": {"title": "Lesion Model (Krea2)"},
+  "2": {"class_type": "GlitchModelKrea2", "_meta": {"title": "Glitch Model (Krea2)"},
         "inputs": {"model": ["1", 0], "enabled": false, "mode": "noise", "strength": 0.5, "probability": 0.25,
                    "target": "both", "block_start": 0, "block_end": 27, "step_start": 0, "step_end": 3,
-                   "lesion_seed": 0}},
+                   "glitch_seed": 0}},
   "3": {"class_type": "CLIPLoader", "_meta": {"title": "Krea2 text encoder"},
         "inputs": {"clip_name": "qwen3-vl-4b-instruct-abliterated.safetensors", "type": "krea2", "device": "default"}},
   "4": {"class_type": "CLIPTextEncode", "_meta": {"title": "Prompt"},
@@ -23,7 +23,7 @@
   "9": {"class_type": "VAEDecode", "_meta": {"title": "Decode"},
         "inputs": {"samples": ["7", 0], "vae": ["8", 0]}},
   "10": {"class_type": "SaveImage", "_meta": {"title": "Save"},
-         "inputs": {"images": ["9", 0], "filename_prefix": "lesionlab/smoke"}},
+         "inputs": {"images": ["9", 0], "filename_prefix": "glitchlab/smoke"}},
   "11": {"class_type": "PreviewAny", "_meta": {"title": "Recipe"},
          "inputs": {"source": ["2", 1]}}
 }

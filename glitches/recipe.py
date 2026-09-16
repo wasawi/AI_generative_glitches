@@ -1,4 +1,4 @@
-"""Validated, immutable description of one lesion experiment (no torch, no ComfyUI)."""
+"""Validated, immutable description of one glitch experiment (no torch, no ComfyUI)."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _int_range(name, start, end):
 
 
 @dataclass(frozen=True)
-class LesionRecipe:
+class GlitchRecipe:
     enabled: bool
     mode: str
     strength: float
@@ -52,11 +52,11 @@ class LesionRecipe:
     block_end: int
     step_start: int
     step_end: int
-    lesion_seed: int
+    glitch_seed: int
 
     @classmethod
     def build(cls, *, enabled, mode, strength, probability, target,
-              block_start, block_end, step_start, step_end, lesion_seed) -> LesionRecipe:
+              block_start, block_end, step_start, step_end, glitch_seed) -> GlitchRecipe:
         if mode not in MODES:
             raise ValueError(f"mode must be one of {', '.join(MODES)}; got {mode!r}")
         if target not in TARGETS:
@@ -67,9 +67,9 @@ class LesionRecipe:
             raise ValueError(f"probability must be between 0 and 1; got {probability_value:g}")
         block_start_value, block_end_value = _int_range("block", block_start, block_end)
         step_start_value, step_end_value = _int_range("step", step_start, step_end)
-        seed = _int("lesion_seed", lesion_seed)
+        seed = _int("glitch_seed", glitch_seed)
         if not 0 <= seed <= SEED_MAX:
-            raise ValueError(f"lesion_seed must be between 0 and {SEED_MAX}; got {seed}")
+            raise ValueError(f"glitch_seed must be between 0 and {SEED_MAX}; got {seed}")
         return cls(bool(enabled), mode, strength_value, probability_value, target,
                    block_start_value, block_end_value, step_start_value, step_end_value, seed)
 
@@ -99,15 +99,15 @@ class LesionRecipe:
 
     def describe(self) -> str:
         body = (
-            f"krea2-lesion v1 | mode={self.mode} strength={self.strength:g} probability={self.probability:g} | "
+            f"krea2-glitch v1 | mode={self.mode} strength={self.strength:g} probability={self.probability:g} | "
             f"target={self.target} blocks={self.block_start}-{self.block_end} sites={self.site_count} | "
-            f"steps={self.step_start}-{self.step_end} | tokens=image | lesion_seed={self.lesion_seed}"
+            f"steps={self.step_start}-{self.step_end} | tokens=image | glitch_seed={self.glitch_seed}"
         )
         reason = self.noop_reason()
         return body if reason is None else f"no-op ({reason}) | {body}"
 
 
-def clamp_to_model(recipe: LesionRecipe, n_blocks: int) -> LesionRecipe:
+def clamp_to_model(recipe: GlitchRecipe, n_blocks: int) -> GlitchRecipe:
     """Return ``recipe`` with its block range clamped to the model's blocks.
 
     Clamping rather than raising: a block_end past the last block (from a widget, a randomizer

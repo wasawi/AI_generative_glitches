@@ -1,22 +1,22 @@
-# Lesion Shape Implementation Plan
+# Glitch Shape Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Add a `Lesion Shape (Krea2)` node (noise distribution, noise blob size, step/block strength curves, spatial mask) and an optional `shape` input on `Lesion Model (Krea2)`, without changing behaviour when no shape is connected.
+**Goal:** Add a `Glitch Shape (Krea2)` node (noise distribution, noise blob size, step/block strength curves, spatial mask) and an optional `shape` input on `Glitch Model (Krea2)`, without changing behaviour when no shape is connected.
 
-**Architecture:** A frozen `LesionShape` value object in `lesion_lab/shape.py` (torch only) validates inputs and provides curve multipliers, a cached token mask and the noise field. `apply_lesion` gains a separate shaped path used only when a shape is passed; the existing path stays byte-for-byte the same. The runtime passes the token grid, step count and block count through. `node.py` adds the shape node and the optional input.
+**Architecture:** A frozen `GlitchShape` value object in `glitches/shape.py` (torch only) validates inputs and provides curve multipliers, a cached token mask and the noise field. `apply_glitch` gains a separate shaped path used only when a shape is passed; the existing path stays byte-for-byte the same. The runtime passes the token grid, step count and block count through. `node.py` adds the shape node and the optional input.
 
 **Tech Stack:** Python 3.12.11, torch 2.9.1, ComfyUI 0.35.1 (read-only), pytest in `./.test-deps`.
 
-**Spec:** `docs/superpowers/specs/2026-09-15-lesion-shape-design.md` (extends `docs/superpowers/specs/2026-09-14-krea2-lesion-lab-design.md`)
+**Spec:** `docs/superpowers/specs/2026-09-15-glitch-shape-design.md` (extends `docs/superpowers/specs/2026-09-14-krea2-glitch-lab-design.md`)
 
 ## Global Constraints
 
 - Write only inside `/Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab`. Other paths are read-only. Tests must not use pytest's `tmp_path`/`tmpdir`.
 - Python: `/Volumes/DATA/ComfyUI/.venv/bin/python`. Test command, from the repo root, always with `tests` or explicit test paths: `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v` (abbreviated `$PYTEST <paths>`).
-- Only `lesion_lab/node.py` imports `comfy`; relative imports inside the package.
-- Without a shape, `apply_lesion`, the recipe string and every existing test stay exactly as they are.
-- Registry keys: `LesionModelKrea2` (existing), `LesionShapeKrea2` (display `Lesion Shape (Krea2)`), category `experimental/lesion-lab`, custom type `LESION_SHAPE`.
+- Only `glitches/node.py` imports `comfy`; relative imports inside the package.
+- Without a shape, `apply_glitch`, the recipe string and every existing test stay exactly as they are.
+- Registry keys: `GlitchModelKrea2` (existing), `GlitchShapeKrea2` (display `Glitch Shape (Krea2)`), category `experimental/glitches`, custom type `GLITCH_SHAPE`.
 - Every commit message ends with a `Co-Authored-By: <model that authored the commit> <noreply@anthropic.com>` line and `Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk`.
 
 ---
@@ -25,34 +25,34 @@
 
 | Path | Change | Responsibility |
 |---|---|---|
-| `lesion_lab/shape.py` | create | `LesionShape`, `curve_at`, `DISTRIBUTIONS`, validation, token mask, noise field, summary text |
-| `lesion_lab/lesions.py` | modify | shaped path in `apply_lesion` |
-| `lesion_lab/runtime.py` | modify | `image_token_grid`, pass shape/grid/step and block counts |
-| `lesion_lab/node.py` | modify | `LesionShapeKrea2`; optional `shape` on `LesionModelKrea2` |
+| `glitches/shape.py` | create | `GlitchShape`, `curve_at`, `DISTRIBUTIONS`, validation, token mask, noise field, summary text |
+| `glitches/effects.py` | modify | shaped path in `apply_glitch` |
+| `glitches/runtime.py` | modify | `image_token_grid`, pass shape/grid/step and block counts |
+| `glitches/node.py` | modify | `GlitchShapeKrea2`; optional `shape` on `GlitchModelKrea2` |
 | `__init__.py` | modify | register the shape node |
 | `tests/test_shape.py` | create | validation, curves, summary |
 | `tests/test_shape_fields.py` | create | token mask, noise field |
-| `tests/test_lesions_shape.py` | create | shaped `apply_lesion` |
+| `tests/test_effects_shape.py` | create | shaped `apply_glitch` |
 | `tests/test_runtime.py` | modify | grid helper, shape pass-through |
 | `tests/test_shape_integration.py` | create | real ComfyUI + tiny Krea2 |
 | `tests/test_comfyui_loading.py` | modify | shape node registered, `shape` optional |
 | `tests/workflow_helpers.py` | create | shared workflow test helpers |
 | `tests/test_random_workflow.py` | modify | use shared helpers |
 | `tests/test_shape_workflow.py` | create | example workflow structure |
-| `workflows/krea2-lesion-shape.json` | create | example UI-format workflow |
-| `README.md` | modify | "Shaping the lesion" section |
+| `workflows/krea2-glitch-shape.json` | create | example UI-format workflow |
+| `README.md` | modify | "Shaping the glitch" section |
 
 ---
 
-### Task 1: LesionShape settings, curves and summary
+### Task 1: GlitchShape settings, curves and summary
 
 **Files:**
-- Create: `lesion_lab/shape.py`
+- Create: `glitches/shape.py`
 - Test: `tests/test_shape.py`
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces (in `lesion_lab/shape.py`): `DISTRIBUTIONS`, `CAUCHY_CLIP = 20.0`, `NOISE_SCALE_MAX = 64`, `curve_at(curve: tuple[float, ...], index: int, count: int) -> float`, `LesionShape.build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None, spatial_mask=None) -> LesionShape`, fields `distribution, spike_density, noise_scale, step_curve, block_curve, spatial_mask`, methods `step_multiplier(step, n_steps) -> float`, `block_multiplier(block, n_blocks) -> float`, `describe(mode: str) -> str`.
+- Produces (in `glitches/shape.py`): `DISTRIBUTIONS`, `CAUCHY_CLIP = 20.0`, `NOISE_SCALE_MAX = 64`, `curve_at(curve: tuple[float, ...], index: int, count: int) -> float`, `GlitchShape.build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None, spatial_mask=None) -> GlitchShape`, fields `distribution, spike_density, noise_scale, step_curve, block_curve, spatial_mask`, methods `step_multiplier(step, n_steps) -> float`, `block_multiplier(block, n_blocks) -> float`, `describe(mode: str) -> str`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -61,13 +61,13 @@
 import pytest
 import torch
 
-from lesion_lab.shape import DISTRIBUTIONS, LesionShape, curve_at
+from glitches.shape import DISTRIBUTIONS, GlitchShape, curve_at
 
 
 def build(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 class HasToList:
@@ -180,12 +180,12 @@ def test_describe_marks_noise_settings_unused_outside_noise_mode():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_shape.py`
-Expected: collection error `ModuleNotFoundError: No module named 'lesion_lab.shape'`.
+Expected: collection error `ModuleNotFoundError: No module named 'glitches.shape'`.
 
-- [ ] **Step 3: Implement `lesion_lab/shape.py` (settings part)**
+- [ ] **Step 3: Implement `glitches/shape.py` (settings part)**
 
 ```python
-"""Optional lesion shaping: noise distribution, spatial mask and step/block curves (torch only)."""
+"""Optional glitch shaping: noise distribution, spatial mask and step/block curves (torch only)."""
 
 from __future__ import annotations
 
@@ -249,7 +249,7 @@ def curve_at(curve: tuple[float, ...], index: int, count: int) -> float:
 
 
 @dataclass(frozen=True, eq=False)
-class LesionShape:
+class GlitchShape:
     distribution: str
     spike_density: float
     noise_scale: int
@@ -260,7 +260,7 @@ class LesionShape:
 
     @classmethod
     def build(cls, distribution, spike_density, noise_scale, step_curve=None, block_curve=None,
-              spatial_mask=None) -> LesionShape:
+              spatial_mask=None) -> GlitchShape:
         if distribution not in DISTRIBUTIONS:
             raise ValueError(f"distribution must be one of {', '.join(DISTRIBUTIONS)}; got {distribution!r}")
         try:
@@ -305,8 +305,8 @@ Expected: all PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lesion_lab/shape.py tests/test_shape.py
-git commit -m "Add LesionShape settings, curves and summary"
+git add glitches/shape.py tests/test_shape.py
+git commit -m "Add GlitchShape settings, curves and summary"
 ```
 (with the trailer lines from Global Constraints)
 
@@ -315,12 +315,12 @@ git commit -m "Add LesionShape settings, curves and summary"
 ### Task 2: Token mask and noise field
 
 **Files:**
-- Modify: `lesion_lab/shape.py`
+- Modify: `glitches/shape.py`
 - Test: `tests/test_shape_fields.py`
 
 **Interfaces:**
-- Consumes: `LesionShape` from Task 1.
-- Produces: `LesionShape.token_mask(step: int, n_steps: int, h: int, w: int, device) -> Tensor[1, h*w, 1] | None` (float32, cached per `(frame, h, w, str(device))`); `LesionShape.draw_noise(k: int, h: int, w: int, generator: torch.Generator, device) -> Tensor[h*w, k]` (float32).
+- Consumes: `GlitchShape` from Task 1.
+- Produces: `GlitchShape.token_mask(step: int, n_steps: int, h: int, w: int, device) -> Tensor[1, h*w, 1] | None` (float32, cached per `(frame, h, w, str(device))`); `GlitchShape.draw_noise(k: int, h: int, w: int, generator: torch.Generator, device) -> Tensor[h*w, k]` (float32).
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -331,7 +331,7 @@ import math
 import pytest
 import torch
 
-from lesion_lab.shape import CAUCHY_CLIP, LesionShape
+from glitches.shape import CAUCHY_CLIP, GlitchShape
 
 CPU = torch.device("cpu")
 
@@ -339,7 +339,7 @@ CPU = torch.device("cpu")
 def build(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 def draw(distribution, k=4, h=250, w=200, scale=1, density=0.05, seed=0):
@@ -441,11 +441,11 @@ def test_scaled_sparse_spikes_with_empty_channels_stay_finite():
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_shape_fields.py`
-Expected: FAIL with `AttributeError: 'LesionShape' object has no attribute 'token_mask'` / `'draw_noise'`.
+Expected: FAIL with `AttributeError: 'GlitchShape' object has no attribute 'token_mask'` / `'draw_noise'`.
 
-- [ ] **Step 3: Implement in `lesion_lab/shape.py`**
+- [ ] **Step 3: Implement in `glitches/shape.py`**
 
-Add `import torch.nn.functional as F` below `import torch`, add `_EDGE = 1e-7` below `NOISE_SCALE_MAX = 64`, and add these methods to `LesionShape` (after `block_multiplier`):
+Add `import torch.nn.functional as F` below `import torch`, add `_EDGE = 1e-7` below `NOISE_SCALE_MAX = 64`, and add these methods to `GlitchShape` (after `block_multiplier`):
 
 ```python
     def token_mask(self, step: int, n_steps: int, h: int, w: int, device) -> torch.Tensor | None:
@@ -505,32 +505,32 @@ Expected: all PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lesion_lab/shape.py tests/test_shape_fields.py
+git add glitches/shape.py tests/test_shape_fields.py
 git commit -m "Add shape token mask and noise field"
 ```
 
 ---
 
-### Task 3: Shaped lesion path and runtime pass-through
+### Task 3: Shaped glitch path and runtime pass-through
 
 **Files:**
-- Modify: `lesion_lab/lesions.py`, `lesion_lab/runtime.py`
-- Test: `tests/test_lesions_shape.py` (create), `tests/test_runtime.py` (append)
+- Modify: `glitches/effects.py`, `glitches/runtime.py`
+- Test: `tests/test_effects_shape.py` (create), `tests/test_runtime.py` (append)
 
 **Interfaces:**
-- Consumes: `LesionShape.step_multiplier`, `block_multiplier`, `token_mask`, `draw_noise` (Tasks 1–2); existing `select_channels`, `mix_seed`, `PURPOSE_NOISE`.
-- Produces: `apply_lesion(out, recipe, block, family, step, txt, n_img, *, shape=None, grid=None, n_steps=None, n_blocks=None)`; `runtime.image_token_grid(x, patch) -> tuple[int, int]`; `LesionWrapper(recipe, shape=None)`.
+- Consumes: `GlitchShape.step_multiplier`, `block_multiplier`, `token_mask`, `draw_noise` (Tasks 1–2); existing `select_channels`, `mix_seed`, `PURPOSE_NOISE`.
+- Produces: `apply_glitch(out, recipe, block, family, step, txt, n_img, *, shape=None, grid=None, n_steps=None, n_blocks=None)`; `runtime.image_token_grid(x, patch) -> tuple[int, int]`; `GlitchWrapper(recipe, shape=None)`.
 
 - [ ] **Step 1: Write the failing tests**
 
-`tests/test_lesions_shape.py`:
+`tests/test_effects_shape.py`:
 ```python
 import pytest
 import torch
 
-from lesion_lab.lesions import apply_lesion, select_channels
-from lesion_lab.shape import LesionShape
-from test_lesions import IMG, N_IMG, TXT, WIDTH, activations, lesion, recipe
+from glitches.effects import apply_glitch, select_channels
+from glitches.shape import GlitchShape
+from test_effects import IMG, N_IMG, TXT, WIDTH, activations, glitch, recipe
 
 MODES = ["dropout", "amplify", "sign_flip", "noise"]
 GRID = (2, 2)  # N_IMG == 4
@@ -539,19 +539,19 @@ GRID = (2, 2)  # N_IMG == 4
 def shape(**overrides):
     args = dict(distribution="gaussian", spike_density=0.05, noise_scale=1)
     args.update(overrides)
-    return LesionShape.build(**args)
+    return GlitchShape.build(**args)
 
 
 def shaped(out, r, s, step=2, block=3, family="mlp", n_steps=8, n_blocks=28, grid=GRID):
-    return apply_lesion(out, r, block, family, step, TXT, N_IMG, shape=s, grid=grid, n_steps=n_steps, n_blocks=n_blocks)
+    return apply_glitch(out, r, block, family, step, TXT, N_IMG, shape=s, grid=grid, n_steps=n_steps, n_blocks=n_blocks)
 
 
 @pytest.mark.parametrize("mode", MODES)
 def test_passing_no_shape_is_bit_identical_to_the_base_path(mode):
     out = activations()
     r = recipe(mode, 0.5)
-    result = apply_lesion(out, r, 3, "mlp", 2, TXT, N_IMG, shape=None, grid=GRID, n_steps=8, n_blocks=28)
-    assert torch.equal(result, lesion(out, r))
+    result = apply_glitch(out, r, 3, "mlp", 2, TXT, N_IMG, shape=None, grid=GRID, n_steps=8, n_blocks=28)
+    assert torch.equal(result, glitch(out, r))
 
 
 @pytest.mark.parametrize("mode", ["dropout", "amplify", "sign_flip"])
@@ -559,7 +559,7 @@ def test_all_ones_shape_matches_the_unshaped_result(mode):
     out = activations()
     r = recipe(mode, 0.5)
     ones = shape(step_curve=[1.0], block_curve=[1.0], spatial_mask=torch.ones(2, 2))
-    torch.testing.assert_close(shaped(out, r, ones), lesion(out, r))
+    torch.testing.assert_close(shaped(out, r, ones), glitch(out, r))
 
 
 @pytest.mark.parametrize("mode", MODES)
@@ -577,7 +577,7 @@ def test_zero_mask_leaves_the_activation_untouched(mode, dtype):
     assert torch.equal(result, out)
 
 
-def test_left_column_mask_only_lesions_left_column_tokens():
+def test_left_column_mask_only_glitches_left_column_tokens():
     out = activations()
     r = recipe("dropout", 1.0, probability=1.0)
     result = shaped(out, r, shape(spatial_mask=torch.tensor([[1.0, 0.0], [1.0, 0.0]])))
@@ -616,15 +616,15 @@ def test_grid_must_match_the_image_token_count():
 Append to `tests/test_runtime.py`:
 ```python
 def test_image_token_grid_returns_height_and_width():
-    from lesion_lab.runtime import image_token_grid
+    from glitches.runtime import image_token_grid
 
     assert image_token_grid(torch.zeros(1, 4, 5, 6), 2) == (3, 3)
     assert image_token_grid(torch.zeros(1, 4, 1, 5, 6), 2) == (3, 3)
 
 
 def test_wrapper_passes_shape_grid_step_and_block_counts(monkeypatch):
-    import lesion_lab.runtime as runtime
-    from lesion_lab.shape import LesionShape
+    import glitches.runtime as runtime
+    from glitches.shape import GlitchShape
 
     seen = []
 
@@ -632,23 +632,23 @@ def test_wrapper_passes_shape_grid_step_and_block_counts(monkeypatch):
         seen.append((block, family, step, txt, n_img, kwargs))
         return output
 
-    monkeypatch.setattr(runtime, "apply_lesion", spy)
-    s = LesionShape.build("gaussian", 0.05, 1)
-    call(LesionWrapper(recipe(target="mlp", block_start=1, block_end=1), s), FakeExecutor(FakeDiT()), sigma=0.5)
+    monkeypatch.setattr(runtime, "apply_glitch", spy)
+    s = GlitchShape.build("gaussian", 0.05, 1)
+    call(GlitchWrapper(recipe(target="mlp", block_start=1, block_end=1), s), FakeExecutor(FakeDiT()), sigma=0.5)
     assert seen == [(1, "mlp", 1, TXT, 6, {"shape": s, "grid": (2, 3), "n_steps": 2, "n_blocks": 2})]
 ```
 
 - [ ] **Step 2: Run to verify failure**
 
-Run: `$PYTEST tests/test_lesions_shape.py tests/test_runtime.py`
-Expected: FAIL (`TypeError: apply_lesion() got an unexpected keyword argument 'shape'`, `ImportError: cannot import name 'image_token_grid'`, `TypeError: LesionWrapper.__init__() takes 2 positional arguments`).
+Run: `$PYTEST tests/test_effects_shape.py tests/test_runtime.py`
+Expected: FAIL (`TypeError: apply_glitch() got an unexpected keyword argument 'shape'`, `ImportError: cannot import name 'image_token_grid'`, `TypeError: GlitchWrapper.__init__() takes 2 positional arguments`).
 
-- [ ] **Step 3: Implement the shaped path in `lesion_lab/lesions.py`**
+- [ ] **Step 3: Implement the shaped path in `glitches/effects.py`**
 
-Replace the `apply_lesion` signature line pair
+Replace the `apply_glitch` signature line pair
 
 ```python
-def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
+def apply_glitch(out: torch.Tensor, recipe: GlitchRecipe, block: int, family: str, step: int,
                  txt: int, n_img: int) -> torch.Tensor:
     """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``."""
 ```
@@ -656,14 +656,14 @@ def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: st
 with
 
 ```python
-def apply_lesion(out: torch.Tensor, recipe: LesionRecipe, block: int, family: str, step: int,
+def apply_glitch(out: torch.Tensor, recipe: GlitchRecipe, block: int, family: str, step: int,
                  txt: int, n_img: int, *, shape=None, grid=None, n_steps=None, n_blocks=None) -> torch.Tensor:
     """Return a copy of ``out`` [B, L, D] with the recipe applied to rows ``txt:txt+n_img``."""
     if shape is not None:
         return _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_steps, n_blocks)
 ```
 
-and add below `apply_lesion` (leave its existing body unchanged):
+and add below `apply_glitch` (leave its existing body unchanged):
 
 ```python
 def _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_steps, n_blocks):
@@ -686,26 +686,26 @@ def _apply_shaped(out, recipe, block, family, step, txt, n_img, shape, grid, n_s
     dose = recipe.strength * multiplier
 
     if recipe.mode == "dropout":
-        lesioned = values * (1.0 - dose)
+        glitched = values * (1.0 - dose)
     elif recipe.mode == "amplify":
-        lesioned = values * (1.0 + dose)
+        glitched = values * (1.0 + dose)
     elif recipe.mode == "sign_flip":
-        lesioned = values * (1.0 - 2.0 * dose)
+        glitched = values * (1.0 - 2.0 * dose)
     elif recipe.mode == "noise":
         rms = torch.linalg.vector_norm(region, dim=-1, keepdim=True, dtype=torch.float32) / math.sqrt(region.shape[-1])
         generator = torch.Generator(device=out.device)
-        generator.manual_seed(mix_seed(recipe.lesion_seed, block, family, step, PURPOSE_NOISE))
+        generator.manual_seed(mix_seed(recipe.glitch_seed, block, family, step, PURPOSE_NOISE))
         noise = shape.draw_noise(selected.numel(), h, w, generator, out.device)
-        lesioned = values + dose * rms * noise
+        glitched = values + dose * rms * noise
     else:
-        raise ValueError(f"unsupported lesion mode: {recipe.mode!r}")
+        raise ValueError(f"unsupported glitch mode: {recipe.mode!r}")
 
     result = out.clone()
-    result[:, rows, :].index_copy_(2, selected, lesioned.to(out.dtype))
+    result[:, rows, :].index_copy_(2, selected, glitched.to(out.dtype))
     return result
 ```
 
-- [ ] **Step 4: Implement the runtime pass-through in `lesion_lab/runtime.py`**
+- [ ] **Step 4: Implement the runtime pass-through in `glitches/runtime.py`**
 
 1. Rename `def image_token_count(x: torch.Tensor, patch: int) -> int:` to `def image_token_grid(x: torch.Tensor, patch: int) -> tuple[int, int]:` (keep its comment and validation), change its final line to `return math.ceil(x.shape[-2] / patch), math.ceil(x.shape[-1] / patch)`, and add after it:
 
@@ -718,24 +718,24 @@ def image_token_count(x: torch.Tensor, patch: int) -> int:
 2. Replace `_make_hook` with:
 
 ```python
-def _make_hook(recipe: LesionRecipe, block: int, family: str, step: int, txt: int, n_img: int, shaping: dict):
+def _make_hook(recipe: GlitchRecipe, block: int, family: str, step: int, txt: int, n_img: int, shaping: dict):
     def hook(module, args, output):
         if not isinstance(output, torch.Tensor) or output.ndim != 3 or output.shape[1] < txt + n_img:
             got = tuple(output.shape) if isinstance(output, torch.Tensor) else type(output).__name__
             raise RuntimeError(
-                f"Lesion Model (Krea2): unexpected {family} output at block {block}: "
+                f"Glitch Model (Krea2): unexpected {family} output at block {block}: "
                 f"expected [B, >= {txt + n_img}, D], got {got}"
             )
-        return apply_lesion(output, recipe, block, family, step, txt, n_img, **shaping)
+        return apply_glitch(output, recipe, block, family, step, txt, n_img, **shaping)
 
     return hook
 ```
 
-3. Replace the `LesionWrapper` class with:
+3. Replace the `GlitchWrapper` class with:
 
 ```python
-class LesionWrapper:
-    def __init__(self, recipe: LesionRecipe, shape=None):
+class GlitchWrapper:
+    def __init__(self, recipe: GlitchRecipe, shape=None):
         self.recipe = recipe
         self.shape = shape
 
@@ -773,14 +773,14 @@ class LesionWrapper:
 
 - [ ] **Step 5: Run to verify pass**
 
-Run: `$PYTEST tests/test_lesions_shape.py tests/test_runtime.py tests/test_lesions.py`
-Expected: all PASS (existing lesion and runtime tests unchanged and passing).
+Run: `$PYTEST tests/test_effects_shape.py tests/test_runtime.py tests/test_effects.py`
+Expected: all PASS (existing glitch and runtime tests unchanged and passing).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lesion_lab/lesions.py lesion_lab/runtime.py tests/test_lesions_shape.py tests/test_runtime.py
-git commit -m "Apply lesion shapes in the lesion path and runtime"
+git add glitches/effects.py glitches/runtime.py tests/test_effects_shape.py tests/test_runtime.py
+git commit -m "Apply glitch shapes in the glitch path and runtime"
 ```
 
 ---
@@ -788,12 +788,12 @@ git commit -m "Apply lesion shapes in the lesion path and runtime"
 ### Task 4: Nodes, registration and ComfyUI integration tests
 
 **Files:**
-- Modify: `lesion_lab/node.py`, `__init__.py`, `tests/test_comfyui_loading.py`
+- Modify: `glitches/node.py`, `__init__.py`, `tests/test_comfyui_loading.py`
 - Test: `tests/test_shape_integration.py` (create)
 
 **Interfaces:**
-- Consumes: `LesionShape`, `DISTRIBUTIONS`, `NOISE_SCALE_MAX` (Tasks 1–2); `LesionWrapper(recipe, shape)` (Task 3); fixtures/helpers in `tests/test_node_integration.py` (`comfy`, `node`, `patcher`, `apply`, `run`, `hook_count`, `H`, `W`, `SCHEDULE`).
-- Produces: `lesion_lab.node.LesionShapeKrea2` (`build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None, spatial_mask=None) -> (LesionShape,)`); `LesionModelKrea2.apply(..., shape=None)`; registry key `LesionShapeKrea2`.
+- Consumes: `GlitchShape`, `DISTRIBUTIONS`, `NOISE_SCALE_MAX` (Tasks 1–2); `GlitchWrapper(recipe, shape)` (Task 3); fixtures/helpers in `tests/test_node_integration.py` (`comfy`, `node`, `patcher`, `apply`, `run`, `hook_count`, `H`, `W`, `SCHEDULE`).
+- Produces: `glitches.node.GlitchShapeKrea2` (`build(distribution, spike_density, noise_scale, step_curve=None, block_curve=None, spatial_mask=None) -> (GlitchShape,)`); `GlitchModelKrea2.apply(..., shape=None)`; registry key `GlitchShapeKrea2`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -810,9 +810,9 @@ GRID_H, GRID_W = (H + 1) // 2, (W + 1) // 2  # latent 9x6 -> 5x3 image tokens
 
 @pytest.fixture
 def shape_node(comfy):
-    from lesion_lab.node import LesionShapeKrea2
+    from glitches.node import GlitchShapeKrea2
 
-    return LesionShapeKrea2()
+    return GlitchShapeKrea2()
 
 
 def make_shape(shape_node, **overrides):
@@ -823,15 +823,15 @@ def make_shape(shape_node, **overrides):
 
 
 def test_shape_node_declares_inputs_and_builds_a_shape(shape_node):
-    from lesion_lab.shape import LesionShape
+    from glitches.shape import GlitchShape
 
     spec = type(shape_node).INPUT_TYPES()
     assert list(spec["required"]) == ["distribution", "spike_density", "noise_scale"]
     assert list(spec["optional"]) == ["step_curve", "block_curve", "spatial_mask"]
     assert spec["optional"]["step_curve"] == ("FLOAT", {"forceInput": True})
-    assert type(shape_node).RETURN_TYPES == ("LESION_SHAPE",)
+    assert type(shape_node).RETURN_TYPES == ("GLITCH_SHAPE",)
     shape = make_shape(shape_node, distribution="spikes", noise_scale=4, step_curve=[0.0, 1.0], spatial_mask=torch.ones(3, 8, 8))
-    assert isinstance(shape, LesionShape)
+    assert isinstance(shape, GlitchShape)
 
 
 def test_recipe_gains_shape_summary_only_when_connected(shape_node, node, patcher):
@@ -843,11 +843,11 @@ def test_recipe_gains_shape_summary_only_when_connected(shape_node, node, patche
 
 
 def test_wrong_shape_type_is_rejected(node, patcher):
-    with pytest.raises(TypeError, match=r"shape must come from a Lesion Shape \(Krea2\) node"):
+    with pytest.raises(TypeError, match=r"shape must come from a Glitch Shape \(Krea2\) node"):
         apply(node, patcher, shape="not a shape")
 
 
-def test_mask_limits_the_lesion_to_masked_tokens(shape_node, node, patcher):
+def test_mask_limits_the_glitch_to_masked_tokens(shape_node, node, patcher):
     mask = torch.zeros(GRID_H, GRID_W)
     mask[:, 0] = 1.0
     shape = make_shape(shape_node, spatial_mask=mask)
@@ -860,13 +860,13 @@ def test_mask_limits_the_lesion_to_masked_tokens(shape_node, node, patcher):
         run(clone, 0.75)
     finally:
         handle.remove()
-    base, lesioned = captured
+    base, glitched = captured
     n_img = GRID_H * GRID_W
     base_img = base[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
-    lesioned_img = lesioned[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
-    assert not torch.equal(base_img[:, :, 0], lesioned_img[:, :, 0])
-    assert torch.equal(base_img[:, :, 1:], lesioned_img[:, :, 1:])
-    assert torch.equal(base[:, :TXT], lesioned[:, :TXT])
+    glitched_img = glitched[:, TXT:TXT + n_img].reshape(2, GRID_H, GRID_W, -1)
+    assert not torch.equal(base_img[:, :, 0], glitched_img[:, :, 0])
+    assert torch.equal(base_img[:, :, 1:], glitched_img[:, :, 1:])
+    assert torch.equal(base[:, :TXT], glitched[:, :TXT])
     assert hook_count(clone) == 0
 
 
@@ -877,7 +877,7 @@ def test_step_curve_zeros_leave_those_steps_untouched(shape_node, node, patcher)
         assert (not torch.equal(run(patcher, sigma), run(clone, sigma))) == changed, f"sigma={sigma}"
 
 
-def test_one_shape_can_drive_two_chained_lesion_nodes(shape_node, node, patcher):
+def test_one_shape_can_drive_two_chained_glitch_nodes(shape_node, node, patcher):
     shape = make_shape(shape_node, distribution="binary", noise_scale=2)
     first, _ = apply(node, patcher, mode="noise", strength=0.5, target="attention", block_end=0, shape=shape)
     second, _ = apply(node, first, mode="amplify", strength=2.0, target="mlp", block_start=1, shape=shape)
@@ -889,38 +889,38 @@ def test_one_shape_can_drive_two_chained_lesion_nodes(shape_node, node, patcher)
 
 In `tests/test_comfyui_loading.py`, after the line `assert required["strength"][1]["max"] == 1000.0`, add:
 ```python
-        assert node_class.INPUT_TYPES()["optional"] == {"shape": ("LESION_SHAPE",)}
-        shape_class = module.NODE_CLASS_MAPPINGS["LesionShapeKrea2"]
-        assert module.NODE_DISPLAY_NAME_MAPPINGS["LesionShapeKrea2"] == "Lesion Shape (Krea2)"
-        assert shape_class.CATEGORY == "experimental/lesion-lab"
-        assert shape_class.RETURN_TYPES == ("LESION_SHAPE",)
+        assert node_class.INPUT_TYPES()["optional"] == {"shape": ("GLITCH_SHAPE",)}
+        shape_class = module.NODE_CLASS_MAPPINGS["GlitchShapeKrea2"]
+        assert module.NODE_DISPLAY_NAME_MAPPINGS["GlitchShapeKrea2"] == "Glitch Shape (Krea2)"
+        assert shape_class.CATEGORY == "experimental/glitches"
+        assert shape_class.RETURN_TYPES == ("GLITCH_SHAPE",)
 ```
 
 - [ ] **Step 2: Run to verify failure**
 
 Run: `$PYTEST tests/test_shape_integration.py tests/test_comfyui_loading.py`
-Expected: FAIL (`ImportError: cannot import name 'LesionShapeKrea2'`, `KeyError: 'optional'`).
+Expected: FAIL (`ImportError: cannot import name 'GlitchShapeKrea2'`, `KeyError: 'optional'`).
 
-- [ ] **Step 3: Implement `lesion_lab/node.py`**
+- [ ] **Step 3: Implement `glitches/node.py`**
 
-1. Add below the existing `from .runtime import LesionWrapper` line:
+1. Add below the existing `from .runtime import GlitchWrapper` line:
 ```python
-from .shape import DISTRIBUTIONS, NOISE_SCALE_MAX, LesionShape
+from .shape import DISTRIBUTIONS, NOISE_SCALE_MAX, GlitchShape
 ```
-2. In `LesionModelKrea2.INPUT_TYPES`, add an `"optional"` key next to `"required"`:
+2. In `GlitchModelKrea2.INPUT_TYPES`, add an `"optional"` key next to `"required"`:
 ```python
             "optional": {
-                "shape": ("LESION_SHAPE",),
+                "shape": ("GLITCH_SHAPE",),
             },
 ```
-3. Change the `apply` signature to end with `lesion_seed, shape=None):`, and replace everything from the line `clone = model.clone()` through the line `return (clone, recipe.describe())` with:
+3. Change the `apply` signature to end with `glitch_seed, shape=None):`, and replace everything from the line `clone = model.clone()` through the line `return (clone, recipe.describe())` with:
 ```python
-        if shape is not None and not isinstance(shape, LesionShape):
-            raise TypeError("shape must come from a Lesion Shape (Krea2) node")
+        if shape is not None and not isinstance(shape, GlitchShape):
+            raise TypeError("shape must come from a Glitch Shape (Krea2) node")
         clone = model.clone()
         if recipe.noop_reason() is None:
             clone.add_wrapper_with_key(
-                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, LesionWrapper(recipe, shape)
+                comfy.patcher_extension.WrappersMP.DIFFUSION_MODEL, WRAPPER_KEY, GlitchWrapper(recipe, shape)
             )
         text = recipe.describe()
         if shape is not None:
@@ -929,15 +929,15 @@ from .shape import DISTRIBUTIONS, NOISE_SCALE_MAX, LesionShape
 ```
 4. Append the new node class:
 ```python
-class LesionShapeKrea2:
+class GlitchShapeKrea2:
     DESCRIPTION = (
-        "Shapes a Lesion Model (Krea2): noise distribution and blob size (noise mode), plus optional strength "
+        "Shapes a Glitch Model (Krea2): noise distribution and blob size (noise mode), plus optional strength "
         "curves over sampling steps and blocks and a spatial mask (all modes)."
     )
-    RETURN_TYPES = ("LESION_SHAPE",)
+    RETURN_TYPES = ("GLITCH_SHAPE",)
     RETURN_NAMES = ("shape",)
     FUNCTION = "build"
-    CATEGORY = "experimental/lesion-lab"
+    CATEGORY = "experimental/glitches"
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -955,20 +955,20 @@ class LesionShapeKrea2:
         }
 
     def build(self, distribution, spike_density, noise_scale, step_curve=None, block_curve=None, spatial_mask=None):
-        return (LesionShape.build(distribution, spike_density, noise_scale, step_curve, block_curve, spatial_mask),)
+        return (GlitchShape.build(distribution, spike_density, noise_scale, step_curve, block_curve, spatial_mask),)
 ```
 
 - [ ] **Step 4: Register the node in `__init__.py`**
 
 ```python
-"""ComfyUI-LesionLab: reproducible activation lesions for Krea2 models."""
+"""ComfyUI-LesionLab: reproducible activation glitches for Krea2 models."""
 
-from .lesion_lab.node import LesionModelKrea2, LesionShapeKrea2
+from .glitches.node import GlitchModelKrea2, GlitchShapeKrea2
 
-NODE_CLASS_MAPPINGS = {"LesionModelKrea2": LesionModelKrea2, "LesionShapeKrea2": LesionShapeKrea2}
+NODE_CLASS_MAPPINGS = {"GlitchModelKrea2": GlitchModelKrea2, "GlitchShapeKrea2": GlitchShapeKrea2}
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LesionModelKrea2": "Lesion Model (Krea2)",
-    "LesionShapeKrea2": "Lesion Shape (Krea2)",
+    "GlitchModelKrea2": "Glitch Model (Krea2)",
+    "GlitchShapeKrea2": "Glitch Shape (Krea2)",
 }
 
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAME_MAPPINGS"]
@@ -982,8 +982,8 @@ Expected: all PASS, 0 skipped, no warnings summary.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lesion_lab/node.py __init__.py tests/test_shape_integration.py tests/test_comfyui_loading.py
-git commit -m "Add Lesion Shape (Krea2) node and optional shape input"
+git add glitches/node.py __init__.py tests/test_shape_integration.py tests/test_comfyui_loading.py
+git commit -m "Add Glitch Shape (Krea2) node and optional shape input"
 ```
 
 ---
@@ -991,7 +991,7 @@ git commit -m "Add Lesion Shape (Krea2) node and optional shape input"
 ### Task 5: Example workflow, shared workflow test helpers and README
 
 **Files:**
-- Create: `tests/workflow_helpers.py`, `tests/test_shape_workflow.py`, `workflows/krea2-lesion-shape.json`
+- Create: `tests/workflow_helpers.py`, `tests/test_shape_workflow.py`, `workflows/krea2-glitch-shape.json`
 - Modify: `tests/test_random_workflow.py`, `README.md`
 
 **Interfaces:**
@@ -1019,7 +1019,7 @@ def only(workflow, key, value):
 
 
 def smoke_inputs(class_type):
-    smoke = load_workflow("krea2-lesion-smoke.json")
+    smoke = load_workflow("krea2-glitch-smoke.json")
     return next(node for node in smoke.values() if node["class_type"] == class_type)["inputs"]
 
 
@@ -1047,8 +1047,8 @@ import random
 
 import pytest
 
-from lesion_lab.lesions import _splitmix64
-from lesion_lab.recipe import MODES, TARGETS, LesionRecipe
+from glitches.effects import _splitmix64
+from glitches.recipe import MODES, TARGETS, GlitchRecipe
 from workflow_helpers import assert_links_consistent, load_workflow, only, smoke_inputs
 
 EASY_SEED_MAX = 1125899906842624  # comfyui-easy-use py/config.py MAX_SEED_NUM
@@ -1056,7 +1056,7 @@ EASY_SEED_MAX = 1125899906842624  # comfyui-easy-use py/config.py MAX_SEED_NUM
 2. Delete its local `load`, `only` and `smoke_inputs` functions and add in their place:
 ```python
 def load():
-    return load_workflow("krea2-lesion-random.json")
+    return load_workflow("krea2-glitch-random.json")
 ```
 3. Replace the body of `test_links_are_consistent_in_both_directions` with `assert_links_consistent(load())`.
 
@@ -1071,7 +1071,7 @@ from workflow_helpers import assert_links_consistent, load_workflow, only, smoke
 
 
 def load():
-    return load_workflow("krea2-lesion-shape.json")
+    return load_workflow("krea2-glitch-shape.json")
 
 
 def source_of(workflow, node, input_name):
@@ -1087,17 +1087,17 @@ def test_links_are_consistent():
     assert_links_consistent(load())
 
 
-def test_shape_node_feeds_the_lesion_node_and_the_mask_feeds_the_shape():
+def test_shape_node_feeds_the_glitch_node_and_the_mask_feeds_the_shape():
     workflow = load()
-    lesion = only(workflow, "type", "LesionModelKrea2")
-    shape = only(workflow, "type", "LesionShapeKrea2")
-    assert source_of(workflow, lesion, "shape") == (shape, 0)
+    glitch = only(workflow, "type", "GlitchModelKrea2")
+    shape = only(workflow, "type", "GlitchShapeKrea2")
+    assert source_of(workflow, glitch, "shape") == (shape, 0)
     mask_node, mask_slot = source_of(workflow, shape, "spatial_mask")
     assert mask_node["type"] == "CreateShapeMask" and mask_slot == 0
     unlinked = {i["name"]: i["link"] for i in shape["inputs"]}
     assert unlinked["step_curve"] is None and unlinked["block_curve"] is None
     assert shape["widgets_values"] == ["spikes", 0.05, 4]
-    assert lesion["widgets_values"][:2] == [True, "noise"]
+    assert glitch["widgets_values"][:2] == [True, "noise"]
 
 
 def test_loaders_and_sampler_match_the_smoke_workflow():
@@ -1114,9 +1114,9 @@ def test_loaders_and_sampler_match_the_smoke_workflow():
 ```
 
 Run: `$PYTEST tests/test_shape_workflow.py`
-Expected: FAIL with `FileNotFoundError` for `krea2-lesion-shape.json`.
+Expected: FAIL with `FileNotFoundError` for `krea2-glitch-shape.json`.
 
-- [ ] **Step 3: Generate `workflows/krea2-lesion-shape.json`**
+- [ ] **Step 3: Generate `workflows/krea2-glitch-shape.json`**
 
 Run once from the repo root (writes only that file):
 ```bash
@@ -1154,14 +1154,14 @@ mask = node("CreateShapeMask", "Spatial mask (circle)", (-340, 470), (320, 270),
              ("grow", "INT", "w"), ("frame_width", "INT", "w"), ("frame_height", "INT", "w"),
              ("shape_width", "INT", "w"), ("shape_height", "INT", "w")],
             [("mask", "MASK"), ("mask_inverted", "MASK")], ["circle", 1, 512, 512, 0, 1024, 1024, 512, 512])
-shape = node("LesionShapeKrea2", "Lesion Shape (Krea2)", (100, 470), (320, 170),
+shape = node("GlitchShapeKrea2", "Glitch Shape (Krea2)", (100, 470), (320, 170),
              [("distribution", "COMBO", "w"), ("spike_density", "FLOAT", "w"), ("noise_scale", "INT", "w"),
               ("step_curve", "FLOAT", "o"), ("block_curve", "FLOAT", "o"), ("spatial_mask", "MASK", "o")],
-             [("shape", "LESION_SHAPE")], ["spikes", 0.05, 4])
-lesion = node("LesionModelKrea2", "Lesion Model (Krea2)", (470, 130), (300, 314),
+             [("shape", "GLITCH_SHAPE")], ["spikes", 0.05, 4])
+glitch = node("GlitchModelKrea2", "Glitch Model (Krea2)", (470, 130), (300, 314),
               [("model", "MODEL", "l"), ("enabled", "BOOLEAN", "w"), ("mode", "COMBO", "w"), ("strength", "FLOAT", "w"),
                ("probability", "FLOAT", "w"), ("target", "COMBO", "w"), ("block_start", "INT", "w"), ("block_end", "INT", "w"),
-               ("step_start", "INT", "w"), ("step_end", "INT", "w"), ("lesion_seed", "INT", "w"), ("shape", "LESION_SHAPE", "o")],
+               ("step_start", "INT", "w"), ("step_end", "INT", "w"), ("glitch_seed", "INT", "w"), ("shape", "GLITCH_SHAPE", "o")],
               [("model", "MODEL"), ("recipe", "STRING")], [True, "noise", 0.5, 0.25, "both", 0, 27, 0, 3, 0])
 clip = node("CLIPLoader", "Krea2 text encoder", (100, 700), (300, 106),
             [("clip_name", "COMBO", "w"), ("type", "COMBO", "w"), ("device", "COMBO", "w")], [("CLIP", "CLIP")],
@@ -1181,11 +1181,11 @@ sampler = node("KSampler", "KSampler (seed fixed)", (1280, 130), (300, 262),
 vae = node("VAELoader", "VAE", (100, 1100), (300, 58), [("vae_name", "COMBO", "w")], [("VAE", "VAE")], ["qwen_image_vae.safetensors"])
 decode = node("VAEDecode", "Decode", (1650, 130), (160, 46), [("samples", "LATENT", "l"), ("vae", "VAE", "l")], [("IMAGE", "IMAGE")])
 save = node("SaveImage", "Save", (1880, 130), (320, 320), [("images", "IMAGE", "l"), ("filename_prefix", "STRING", "w")], [],
-            ["lesionlab/shape"])
+            ["glitchlab/shape"])
 recipe = node("PreviewAny", "Recipe", (830, -140), (420, 160), [("source", "*", "l")], [("STRING", "STRING")], [])
 
-link(loader, 0, lesion, "model"); link(mask, 0, shape, "spatial_mask"); link(shape, 0, lesion, "shape")
-link(lesion, 0, sampler, "model"); link(lesion, 1, recipe, "source")
+link(loader, 0, glitch, "model"); link(mask, 0, shape, "spatial_mask"); link(shape, 0, glitch, "shape")
+link(glitch, 0, sampler, "model"); link(glitch, 1, recipe, "source")
 link(clip, 0, prompt, "clip"); link(prompt, 0, negative, "conditioning"); link(prompt, 0, sampler, "positive")
 link(negative, 0, sampler, "negative"); link(latent, 0, sampler, "latent_image")
 link(sampler, 0, decode, "samples"); link(vae, 0, decode, "vae"); link(decode, 0, save, "images")
@@ -1196,11 +1196,11 @@ for n in nodes:
 workflow = {"id": "8d2e4b61-3f5a-4c0e-9a7b-2e6f1c9d4a58", "revision": 0, "last_node_id": len(nodes),
             "last_link_id": len(links), "nodes": nodes, "links": links, "groups": [], "config": {},
             "extra": {"ds": {"scale": 0.7, "offset": [500, 300]}}, "version": 0.4}
-Path("workflows/krea2-lesion-shape.json").write_text(json.dumps(workflow, indent=1) + "\n")
-print("wrote workflows/krea2-lesion-shape.json", len(nodes), "nodes", len(links), "links")
+Path("workflows/krea2-glitch-shape.json").write_text(json.dumps(workflow, indent=1) + "\n")
+print("wrote workflows/krea2-glitch-shape.json", len(nodes), "nodes", len(links), "links")
 EOF
 ```
-Expected: `wrote workflows/krea2-lesion-shape.json 13 nodes 13 links`.
+Expected: `wrote workflows/krea2-glitch-shape.json 13 nodes 13 links`.
 
 - [ ] **Step 4: Run to verify pass**
 
@@ -1212,10 +1212,10 @@ Expected: all PASS.
 In `README.md`, insert this section immediately before the line `## Limits`:
 
 ````markdown
-## Shaping the lesion
+## Shaping the glitch
 
-`Lesion Shape (Krea2)` is an optional companion node. Connect its `shape` output to the lesion node's
-`shape` input; without it the lesion node behaves exactly as described above.
+`Glitch Shape (Krea2)` is an optional companion node. Connect its `shape` output to the glitch node's
+`shape` input; without it the glitch node behaves exactly as described above.
 
 | Input | Meaning |
 |---|---|
@@ -1224,15 +1224,15 @@ In `README.md`, insert this section immediately before the line `## Limits`:
 | `noise_scale` | Noise blob size in image tokens (1 token = 16×16 px). 1 = fine grain, 8 = large blobs. Noise mode only |
 | `step_curve` | Strength multiplier across sampling steps (every mode) |
 | `block_curve` | Strength multiplier across the 28 blocks (every mode) |
-| `spatial_mask` | Strength multiplier over the picture (every mode): white = full lesion, black = untouched |
+| `spatial_mask` | Strength multiplier over the picture (every mode): white = full glitch, black = untouched |
 
 All noise distributions except `cauchy` have the same average size, so `strength` means the same across them.
 
 **Curves.** Any node with a `FLOAT` value or list output works, for example KJNodes **Spline Editor**
 (add it with a double-click search, then connect its `float` output). A curve is always stretched over the
 whole run: its first point is step 0 (or block 0), its last point the final step (or block 27), with
-straight lines in between, whatever `points_to_sample` is. Values above 1 boost the lesion; negative
-values reverse it. The lesion node's step and block windows still limit where it acts, so open them fully
+straight lines in between, whatever `points_to_sample` is. Values above 1 boost the glitch; negative
+values reverse it. The glitch node's step and block windows still limit where it acts, so open them fully
 (`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve do the shaping.
 
 **Masks.** Any `MASK` works: KJNodes `CreateShapeMask`, `CreateGradientMask`, `CreateVoronoiMask`,
@@ -1240,7 +1240,7 @@ values reverse it. The lesion node's step and block windows still limit where it
 stretched to the image, so draw it at the image's aspect ratio. A mask with several frames plays across
 the sampling steps (first frame at step 0, last frame at the final step).
 
-`workflows/krea2-lesion-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
+`workflows/krea2-glitch-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
 `spikes` (density 0.05, blob size 4) inside a centred circle from `CreateShapeMask`. It needs
 comfyui-kjnodes.
 
@@ -1254,10 +1254,10 @@ Expected: all PASS, 0 skipped, no warnings summary.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add tests/workflow_helpers.py tests/test_random_workflow.py tests/test_shape_workflow.py workflows/krea2-lesion-shape.json README.md
-git commit -m "Add Lesion Shape example workflow, shared workflow test helpers and README section"
+git add tests/workflow_helpers.py tests/test_random_workflow.py tests/test_shape_workflow.py workflows/krea2-glitch-shape.json README.md
+git commit -m "Add Glitch Shape example workflow, shared workflow test helpers and README section"
 ```
 
 - [ ] **Step 8: Hand off the manual check to the user**
 
-Do not touch ComfyUI. Tell the user: restart ComfyUI; open `workflows/krea2-lesion-shape.json`; queue once with the lesion node off and once on; the lesion should be confined to the centred circle; then try adding a KJNodes Spline Editor to `step_curve` as the README describes.
+Do not touch ComfyUI. Tell the user: restart ComfyUI; open `workflows/krea2-glitch-shape.json`; queue once with the glitch node off and once on; the glitch should be confined to the centred circle; then try adding a KJNodes Spline Editor to `step_curve` as the README describes.
