@@ -1,6 +1,6 @@
 """Compare two images pixel by pixel.
 
-Usage: /Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png
+Usage: python tools/compare_images.py A.png B.png   (use the Python that runs your ComfyUI)
 Exit code: 0 identical, 1 different, 2 usage error.
 """
 

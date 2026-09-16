@@ -1,18 +1,27 @@
-# ComfyUI-LesionLab
+# AI_generative_glitches
 
-`Glitch Model (Krea2)` damages a Krea2 model's internal activations while it generates, in a controlled
-and repeatable way, so you can see how the picture changes. It never modifies a checkpoint file or the
-model weights: remove the node and the model is back to normal.
+ComfyUI nodes that glitch a diffusion model from the inside. `Glitch Model (Krea2)` damages the model's
+internal activations while it generates, in a controlled and repeatable way, so you can see how the
+picture changes. It never modifies a checkpoint file or the model weights: remove the node and the model
+is back to normal.
+
+Works with **Krea2** models, loaded from GGUF or safetensors — the nodes check the model architecture,
+not the file format. Other architectures are rejected with a clear message; support for more (Flux is the
+closest fit) is a small addition if there is interest.
 
 ## Install
 
-This folder is the custom-node package. Link it into ComfyUI once, then restart ComfyUI:
+Clone or link this repository into ComfyUI's `custom_nodes`, then restart ComfyUI:
 
 ```bash
-ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab
+git clone https://github.com/wasawi/AI_generative_glitches.git /path/to/ComfyUI/custom_nodes/AI_generative_glitches
 ```
 
-The node appears under **experimental → glitches**. Edits in this folder take effect after a restart.
+The nodes appear under **experimental → glitches**. Edits take effect after a restart.
+
+Two nodes are included: `Glitch Model (Krea2)` (the glitch itself) and `Glitch Shape (Krea2)` (optional
+control over noise type, spatial masks and strength curves). Workflows saved before the project was
+renamed still load: the previous node names remain registered, hidden from the search.
 
 ## Wiring
 
@@ -71,9 +80,9 @@ Alternate like this: ComfyUI caches results, so re-queuing identical settings re
 instead of generating again. Then compare (images are in ComfyUI's output folder under `glitchlab/`):
 
 ```bash
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png C.png   # how much your setup varies run to run
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the glitch repeats
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the glitch's effect
+python tools/compare_images.py A.png C.png   # how much your setup varies run to run
+python tools/compare_images.py B.png D.png   # the glitch repeats
+python tools/compare_images.py A.png B.png   # the glitch's effect
 ```
 
 A/C and B/D should be identical, or differ no more than A/C does (Apple GPU kernels are not always
@@ -192,10 +201,20 @@ KSampler seed stay manual, and `step_curve`/`block_curve` stay free for a Spline
 Tests run with the ComfyUI venv's Python; pytest lives in `./.test-deps` (git-ignored):
 
 ```bash
-/Volumes/DATA/ComfyUI/.venv/bin/python -m pip install --no-cache-dir --target ./.test-deps pytest
-PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest tests -v
+python -m pip install --no-cache-dir --target ./.test-deps pytest
+PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest tests -v
 ```
 
-Integration tests import ComfyUI read-only from `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`
-(override with `COMFYUI_ROOT`) and read tensor names from the real GGUF (override with `KREA2_GGUF`).
-Design and plan: `docs/superpowers/`.
+Integration tests import ComfyUI read-only. They find it automatically (`$COMFYUI_ROOT`, a parent
+directory when this package sits in `custom_nodes`, or a `ComfyUI` folder in your home directory) and
+skip if none is found. One test reads the tensor names of a real Krea2 checkpoint and skips unless
+`KREA2_GGUF` points at one:
+
+```bash
+COMFYUI_ROOT=/path/to/ComfyUI KREA2_GGUF=/path/to/krea2.gguf \
+  PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest tests -v
+```
+
+The example workflows name the checkpoint, text encoder and VAE used while developing them; substitute
+your own in the loader nodes. Design documents and implementation plans: `docs/superpowers/`.
+Licence: MIT (see `LICENSE`).

@@ -12,8 +12,8 @@
 
 ## Global Constraints
 
-- Write only inside `/Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab`. Other paths are read-only. Tests must not use pytest's `tmp_path`/`tmpdir`.
-- Python: `/Volumes/DATA/ComfyUI/.venv/bin/python`. Test command, from the repo root, always with `tests` or explicit test paths: `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v` (abbreviated `$PYTEST <paths>`).
+- Write only inside `/path/to/AI_generative_glitches`. Other paths are read-only. Tests must not use pytest's `tmp_path`/`tmpdir`.
+- Python: `python`. Test command, from the repo root, always with `tests` or explicit test paths: `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest <paths> -v` (abbreviated `$PYTEST <paths>`).
 - Only `glitches/node.py` imports `comfy`; relative imports inside the package.
 - Without a shape, `apply_glitch`, the recipe string and every existing test stay exactly as they are.
 - Registry keys: `GlitchModelKrea2` (existing), `GlitchShapeKrea2` (display `Glitch Shape (Krea2)`), category `experimental/glitches`, custom type `GLITCH_SHAPE`.
@@ -1120,7 +1120,7 @@ Expected: FAIL with `FileNotFoundError` for `krea2-glitch-shape.json`.
 
 Run once from the repo root (writes only that file):
 ```bash
-PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python - <<'EOF'
+PYTHONDONTWRITEBYTECODE=1 python - <<'EOF'
 import json
 from pathlib import Path
 

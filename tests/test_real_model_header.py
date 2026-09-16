@@ -3,12 +3,12 @@ from pathlib import Path
 
 import pytest
 
-GGUF_PATH = Path(os.environ.get("KREA2_GGUF", "/Volumes/DATA/ComfyUI/models/unet/KREA/museByStableYogi_v25GGUF.gguf"))
+GGUF_PATH = Path(os.environ["KREA2_GGUF"]) if os.environ.get("KREA2_GGUF") else None
 
 
 def test_real_krea2_gguf_exposes_the_glitch_sites():
-    if not GGUF_PATH.is_file():
-        pytest.skip(f"{GGUF_PATH} not found; set KREA2_GGUF")
+    if GGUF_PATH is None or not GGUF_PATH.is_file():
+        pytest.skip("set KREA2_GGUF to a Krea2 .gguf checkpoint to run this check")
     gguf = pytest.importorskip("gguf")
     names = {tensor.name for tensor in gguf.GGUFReader(str(GGUF_PATH)).tensors}
     assert {int(name.split(".")[1]) for name in names if name.startswith("blocks.")} == set(range(28))

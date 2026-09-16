@@ -15,9 +15,9 @@ and makes no claims beyond what the images show.
 
 | Item | Value |
 |---|---|
-| ComfyUI code | `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`, version 0.35.1 |
-| Base directory / custom nodes | `/Volumes/DATA/ComfyUI`, `/Volumes/DATA/ComfyUI/custom_nodes` |
-| Python / torch | `/Volumes/DATA/ComfyUI/.venv`, Python 3.12.11, torch 2.9.1, MPS |
+| ComfyUI code | `/path/to/ComfyUI`, version 0.35.1 |
+| Base directory / custom nodes | `<ComfyUI base directory>`, `/path/to/ComfyUI/custom_nodes` |
+| Python / torch | `<ComfyUI>/.venv`, Python 3.12.11, torch 2.9.1, MPS |
 | Krea2 model code | `comfy/ldm/krea2/model.py`, class `SingleStreamDiT` |
 | Known-loadable Krea2 GGUF | `models/unet/KREA/museByStableYogi_v25GGUF.gguf` (GGUF arch tag `qwen_image`, 28 blocks) |
 | Not loadable by installed ComfyUI-GGUF | `krea2_turbo_Q4_0.gguf` (arch tag `krea2` is not in its `IMG_ARCH_LIST`) |
@@ -28,10 +28,10 @@ exists but is not a target.
 ## Constraints
 
 - All source, tests, docs and tooling live in this folder
-  (`/Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab`). Nothing outside it is
+  (`/path/to/AI_generative_glitches`). Nothing outside it is
   written. Other locations are read only.
 - ComfyUI discovers the node through a symlink the **user** creates:
-  `ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab`.
+  `ln -s /path/to/AI_generative_glitches /path/to/ComfyUI/custom_nodes/ComfyUI-LesionLab`.
   This folder is therefore itself the package root.
 - Never write, rename or replace any checkpoint; never patch model weights.
 - Do not modify ComfyUI or other custom nodes; use only public ComfyUI
@@ -224,8 +224,8 @@ Tests run with the DATA venv's Python and pytest installed into
 `./.test-deps` (git-ignored):
 
 ```
-/Volumes/DATA/ComfyUI/.venv/bin/python -m pip install --no-cache-dir --target ./.test-deps pytest
-PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest -p no:cacheprovider tests
+python -m pip install --no-cache-dir --target ./.test-deps pytest
+PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest -p no:cacheprovider tests
 ```
 
 **Unit tests (no ComfyUI):**
@@ -233,7 +233,7 @@ PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/
 - glitches: each mode's formula on known values; exactly `k` channels changed; determinism; different step/block/family/seed → different selection; per-item identical result for batch 1 vs 2; text/reference rows and unselected channels unchanged; input not mutated; dtype preserved (float16/bfloat16).
 - steps: exact schedule points, in-between sigmas, final step, sigma above `sample_sigmas[0]`, shortened schedules.
 
-**Integration tests** (import ComfyUI read-only from `COMFYUI_ROOT`, default `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`; skipped if absent):
+**Integration tests** (import ComfyUI read-only from `COMFYUI_ROOT`, default `/path/to/ComfyUI`; skipped if absent):
 - Tiny real `SingleStreamDiT` (2 blocks, small width) inside a real `ModelPatcher`, driven through the real `WrapperExecutor` with synthetic `sigmas` / `sample_sigmas`: output differs inside the window and is bit-identical outside; hooks removed after success and after a forced exception; source patcher has no wrapper; chained nodes stack; reference-latent path works; non-Krea2 model rejected.
 - GGUF header check (skipped if the file is absent): the tensor names of `museByStableYogi_v25GGUF.gguf` contain `blocks.{0..27}.attn.*` and `blocks.{0..27}.mlp.*`; no tensor data is read.
 - Load-as-ComfyUI check: import this folder exactly as `nodes.load_custom_node` does (`spec_from_file_location(<folder path with "." replaced by "_x_">, "<folder>/__init__.py")`) and assert `NODE_CLASS_MAPPINGS["GlitchModelKrea2"]`, the input names and the outputs.

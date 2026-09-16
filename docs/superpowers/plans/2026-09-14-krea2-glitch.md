@@ -12,10 +12,10 @@
 
 ## Global Constraints
 
-- Write only inside `/Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab` (the repo root, "this folder"). Other paths are read-only. Tests must not write outside this folder: do not use pytest's `tmp_path`/`tmpdir`; use `io.BytesIO`.
-- Python for everything: `/Volumes/DATA/ComfyUI/.venv/bin/python` (Python 3.12.11, torch 2.9.1).
-- Test command (run from the repo root): `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest <paths> -v`. Below this is abbreviated as `$PYTEST <paths>`. Always pass tests or explicit test file paths; never run pytest without a path from the repo root (pytest would import the root __init__.py, which imports ComfyUI).
-- ComfyUI code (read-only): `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`, overridable with env `COMFYUI_ROOT`.
+- Write only inside `/path/to/AI_generative_glitches` (the repo root, "this folder"). Other paths are read-only. Tests must not write outside this folder: do not use pytest's `tmp_path`/`tmpdir`; use `io.BytesIO`.
+- Python for everything: `python` (Python 3.12.11, torch 2.9.1).
+- Test command (run from the repo root): `PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest <paths> -v`. Below this is abbreviated as `$PYTEST <paths>`. Always pass tests or explicit test file paths; never run pytest without a path from the repo root (pytest would import the root __init__.py, which imports ComfyUI).
+- ComfyUI code (read-only): `/path/to/ComfyUI`, overridable with env `COMFYUI_ROOT`.
 - Never write, rename or replace a checkpoint; never patch weights; never modify ComfyUI or other custom nodes.
 - Inside the package use relative imports only (`from .recipe import …`). Only `glitches/node.py` imports `comfy`.
 - Node: class/registry key `GlitchModelKrea2`, display name `Glitch Model (Krea2)`, category `experimental/glitches`, outputs `("MODEL", "STRING")` named `("model", "recipe")`, wrapper key `"glitches"`.
@@ -73,7 +73,7 @@
 
 Run:
 ```bash
-PIP_DISABLE_PIP_VERSION_CHECK=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pip install --no-cache-dir --target ./.test-deps pytest
+PIP_DISABLE_PIP_VERSION_CHECK=1 python -m pip install --no-cache-dir --target ./.test-deps pytest
 ```
 Expected: `Successfully installed … pytest-…`. `.test-deps/` is already in `.gitignore`.
 
@@ -95,7 +95,7 @@ from pathlib import Path
 import pytest
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-COMFYUI_ROOT = Path(os.environ.get("COMFYUI_ROOT", "/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI"))
+COMFYUI_ROOT = Path(os.environ.get("COMFYUI_ROOT", "/path/to/ComfyUI"))
 
 if str(PACKAGE_ROOT) not in sys.path:
     sys.path.insert(0, str(PACKAGE_ROOT))
@@ -1120,7 +1120,7 @@ from pathlib import Path
 
 import pytest
 
-GGUF_PATH = Path(os.environ.get("KREA2_GGUF", "/Volumes/DATA/ComfyUI/models/unet/KREA/museByStableYogi_v25GGUF.gguf"))
+GGUF_PATH = Path(os.environ.get("KREA2_GGUF", "<your Krea2 .gguf>"))
 
 
 def test_real_krea2_gguf_exposes_the_glitch_sites():
@@ -1244,7 +1244,7 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 - Test: `tests/test_compare_images.py`, `tests/test_smoke_workflow.py`
 
 **Interfaces:**
-- Consumes: node registry key and input names (Global Constraints). Model/encoder/VAE names verified on 2026-09-14 in `/Volumes/DATA/ComfyUI/user/default/workflows/Krea_2_clean.json`: `LoaderGGUF` (`gguf_name`: `KREA/museByStableYogi_v25GGUF.gguf`), `CLIPLoader` (`qwen3-vl-4b-instruct-abliterated.safetensors`, type `krea2`), `VAELoader` (`qwen_image_vae.safetensors`), `KSampler` 8 steps, cfg 1, `er_sde`, `simple`.
+- Consumes: node registry key and input names (Global Constraints). Model/encoder/VAE names verified on 2026-09-14 in `<ComfyUI>/user/default/workflows/Krea_2_clean.json`: `LoaderGGUF` (`gguf_name`: `KREA/museByStableYogi_v25GGUF.gguf`), `CLIPLoader` (`qwen3-vl-4b-instruct-abliterated.safetensors`, type `krea2`), `VAELoader` (`qwen_image_vae.safetensors`), `KSampler` 8 steps, cfg 1, `er_sde`, `simple`.
 - Produces: `tools/compare_images.py` with `compare(a, b) -> dict`, `format_report(result: dict) -> str`, `main(argv: list[str]) -> int` (0 identical, 1 different, 2 usage).
 
 - [ ] **Step 1: Write the failing tests**
@@ -1339,7 +1339,7 @@ Expected: FAIL (`ModuleNotFoundError: No module named 'compare_images'`, `FileNo
 ```python
 """Compare two images pixel by pixel.
 
-Usage: /Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png
+Usage: python tools/compare_images.py A.png B.png
 Exit code: 0 identical, 1 different, 2 usage error.
 """
 
@@ -1445,7 +1445,7 @@ model weights: remove the node and the model is back to normal.
 This folder is the custom-node package. Link it into ComfyUI once, then restart ComfyUI:
 
 ```bash
-ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab
+ln -s /path/to/AI_generative_glitches /path/to/ComfyUI/custom_nodes/ComfyUI-LesionLab
 ```
 
 The node appears under **experimental → glitches**. Edits in this folder take effect after a restart.
@@ -1504,9 +1504,9 @@ Alternate like this: ComfyUI caches results, so re-queuing identical settings re
 instead of generating again. Then compare (images are in ComfyUI's output folder under `glitchlab/`):
 
 ```bash
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png C.png   # how much your setup varies run to run
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py B.png D.png   # the glitch repeats
-/Volumes/DATA/ComfyUI/.venv/bin/python tools/compare_images.py A.png B.png   # the glitch's effect
+python tools/compare_images.py A.png C.png   # how much your setup varies run to run
+python tools/compare_images.py B.png D.png   # the glitch repeats
+python tools/compare_images.py A.png B.png   # the glitch's effect
 ```
 
 A/C and B/D should be identical, or differ no more than A/C does (Apple GPU kernels are not always
@@ -1527,11 +1527,11 @@ steps (5–7); compare `glitch_seed` 0, 1 and 2 at the same settings.
 Tests run with the ComfyUI venv's Python; pytest lives in `./.test-deps` (git-ignored):
 
 ```bash
-/Volumes/DATA/ComfyUI/.venv/bin/python -m pip install --no-cache-dir --target ./.test-deps pytest
-PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 /Volumes/DATA/ComfyUI/.venv/bin/python -m pytest tests -v
+python -m pip install --no-cache-dir --target ./.test-deps pytest
+PYTHONPATH=.test-deps PYTHONDONTWRITEBYTECODE=1 python -m pytest tests -v
 ```
 
-Integration tests import ComfyUI read-only from `/Users/wswi/ComfyUI-Installs/ComfyUI/ComfyUI`
+Integration tests import ComfyUI read-only from `/path/to/ComfyUI`
 (override with `COMFYUI_ROOT`) and read tensor names from the real GGUF (override with `KREA2_GGUF`).
 Design and plan: `docs/superpowers/`.
 ````
@@ -1552,6 +1552,6 @@ Claude-Session: https://claude.ai/code/session_01J7HDJFz4GpCtv6Nnr8Wqvk"
 - [ ] **Step 9: Hand off the manual smoke test to the user**
 
 Do not create the symlink or restart ComfyUI (both are outside this folder). Tell the user:
-1. Run `ln -s /Users/wswi/Desktop/CLAUDE/ComfyUI-LesionLab /Volumes/DATA/ComfyUI/custom_nodes/ComfyUI-LesionLab` and restart ComfyUI.
+1. Run `ln -s /path/to/AI_generative_glitches /path/to/ComfyUI/custom_nodes/ComfyUI-LesionLab` and restart ComfyUI.
 2. Follow README "First experiment" (A off, B on, C off, D on) and run the three comparisons.
 3. Report the three comparison lines; pass = A/C and B/D identical or within the A/C level, A/B clearly different.
