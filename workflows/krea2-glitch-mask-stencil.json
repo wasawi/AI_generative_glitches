@@ -1,0 +1,1386 @@
+{
+ "id": "c41f8a37-6b92-4d15-8e0a-7f3c2d9b5e64",
+ "revision": 0,
+ "last_node_id": 19,
+ "last_link_id": 19,
+ "nodes": [
+  {
+   "id": 1,
+   "type": "LoaderGGUF",
+   "pos": [
+    100,
+    130
+   ],
+   "size": [
+    300,
+    58
+   ],
+   "flags": {},
+   "order": 0,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "LoaderGGUF"
+   },
+   "inputs": [
+    {
+     "localized_name": "gguf_name",
+     "name": "gguf_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "gguf_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "MODEL",
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      1
+     ]
+    }
+   ],
+   "title": "Krea2 GGUF",
+   "widgets_values": [
+    "KREA/museByStableYogi_v25GGUF.gguf"
+   ]
+  },
+  {
+   "id": 2,
+   "type": "CLIPLoader",
+   "pos": [
+    100,
+    700
+   ],
+   "size": [
+    300,
+    106
+   ],
+   "flags": {},
+   "order": 1,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "CLIPLoader"
+   },
+   "inputs": [
+    {
+     "localized_name": "clip_name",
+     "name": "clip_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "clip_name"
+     }
+    },
+    {
+     "localized_name": "type",
+     "name": "type",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "type"
+     }
+    },
+    {
+     "localized_name": "device",
+     "name": "device",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "device"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "CLIP",
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      2
+     ]
+    }
+   ],
+   "title": "Krea2 text encoder",
+   "widgets_values": [
+    "qwen3-vl-4b-instruct-abliterated.safetensors",
+    "krea2",
+    "default"
+   ]
+  },
+  {
+   "id": 3,
+   "type": "CLIPTextEncode",
+   "pos": [
+    470,
+    700
+   ],
+   "size": [
+    400,
+    200
+   ],
+   "flags": {},
+   "order": 6,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "inputs": [
+    {
+     "localized_name": "clip",
+     "name": "clip",
+     "type": "CLIP",
+     "link": 2
+    },
+    {
+     "localized_name": "text",
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "CONDITIONING",
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      3,
+      4
+     ]
+    }
+   ],
+   "title": "Prompt",
+   "widgets_values": [
+    "a photograph of a red bicycle leaning against a white brick wall, soft morning daylight, sharp focus"
+   ]
+  },
+  {
+   "id": 4,
+   "type": "ConditioningZeroOut",
+   "pos": [
+    970,
+    700
+   ],
+   "size": [
+    220,
+    26
+   ],
+   "flags": {},
+   "order": 10,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "ConditioningZeroOut"
+   },
+   "inputs": [
+    {
+     "localized_name": "conditioning",
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "link": 3
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "CONDITIONING",
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      5
+     ]
+    }
+   ],
+   "title": "Empty negative"
+  },
+  {
+   "id": 5,
+   "type": "EmptyLatentImage",
+   "pos": [
+    100,
+    950
+   ],
+   "size": [
+    300,
+    106
+   ],
+   "flags": {},
+   "order": 2,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "EmptyLatentImage"
+   },
+   "inputs": [
+    {
+     "localized_name": "width",
+     "name": "width",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "width"
+     }
+    },
+    {
+     "localized_name": "height",
+     "name": "height",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "height"
+     }
+    },
+    {
+     "localized_name": "batch_size",
+     "name": "batch_size",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "batch_size"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "LATENT",
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      6
+     ]
+    }
+   ],
+   "title": "Latent",
+   "widgets_values": [
+    1024,
+    1024,
+    1
+   ]
+  },
+  {
+   "id": 6,
+   "type": "VAELoader",
+   "pos": [
+    100,
+    1100
+   ],
+   "size": [
+    300,
+    58
+   ],
+   "flags": {},
+   "order": 3,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "VAELoader"
+   },
+   "inputs": [
+    {
+     "localized_name": "vae_name",
+     "name": "vae_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "vae_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "VAE",
+     "name": "VAE",
+     "type": "VAE",
+     "links": [
+      18
+     ]
+    }
+   ],
+   "title": "VAE",
+   "widgets_values": [
+    "qwen_image_vae.safetensors"
+   ]
+  },
+  {
+   "id": 7,
+   "type": "LoadImage",
+   "pos": [
+    -700,
+    130
+   ],
+   "size": [
+    320,
+    320
+   ],
+   "flags": {},
+   "order": 4,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "LoadImage"
+   },
+   "inputs": [],
+   "outputs": [
+    {
+     "localized_name": "IMAGE",
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      7
+     ]
+    },
+    {
+     "localized_name": "MASK",
+     "name": "MASK",
+     "type": "MASK",
+     "links": null
+    }
+   ],
+   "title": "Reference picture",
+   "widgets_values": [
+    "example.png",
+    "image"
+   ]
+  },
+  {
+   "id": 8,
+   "type": "CheckpointLoaderSimple",
+   "pos": [
+    -700,
+    500
+   ],
+   "size": [
+    330,
+    98
+   ],
+   "flags": {},
+   "order": 5,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "CheckpointLoaderSimple",
+    "models": [
+     {
+      "name": "sam3.1_multiplex_fp16.safetensors",
+      "url": "https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors",
+      "directory": "checkpoints"
+     }
+    ]
+   },
+   "inputs": [
+    {
+     "localized_name": "ckpt_name",
+     "name": "ckpt_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "ckpt_name"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "MODEL",
+     "name": "MODEL",
+     "type": "MODEL",
+     "links": [
+      8
+     ]
+    },
+    {
+     "localized_name": "CLIP",
+     "name": "CLIP",
+     "type": "CLIP",
+     "links": [
+      9
+     ]
+    },
+    {
+     "localized_name": "VAE",
+     "name": "VAE",
+     "type": "VAE",
+     "links": null
+    }
+   ],
+   "title": "SAM3 checkpoint",
+   "widgets_values": [
+    "sam3.1_multiplex_fp16.safetensors"
+   ]
+  },
+  {
+   "id": 9,
+   "type": "CLIPTextEncode",
+   "pos": [
+    -700,
+    660
+   ],
+   "size": [
+    330,
+    130
+   ],
+   "flags": {},
+   "order": 7,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "CLIPTextEncode"
+   },
+   "inputs": [
+    {
+     "localized_name": "clip",
+     "name": "clip",
+     "type": "CLIP",
+     "link": 9
+    },
+    {
+     "localized_name": "text",
+     "name": "text",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "text"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "CONDITIONING",
+     "name": "CONDITIONING",
+     "type": "CONDITIONING",
+     "links": [
+      10
+     ]
+    }
+   ],
+   "title": "Object to segment",
+   "widgets_values": [
+    "cat"
+   ]
+  },
+  {
+   "id": 10,
+   "type": "SAM3_Detect",
+   "pos": [
+    -330,
+    360
+   ],
+   "size": [
+    270,
+    260
+   ],
+   "flags": {},
+   "order": 8,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "SAM3_Detect"
+   },
+   "inputs": [
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "MODEL",
+     "link": 8
+    },
+    {
+     "localized_name": "image",
+     "name": "image",
+     "type": "IMAGE",
+     "link": 7
+    },
+    {
+     "localized_name": "conditioning",
+     "name": "conditioning",
+     "type": "CONDITIONING",
+     "shape": 7,
+     "link": 10
+    },
+    {
+     "localized_name": "bboxes",
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "shape": 7,
+     "link": null
+    },
+    {
+     "localized_name": "positive_coords",
+     "name": "positive_coords",
+     "type": "STRING",
+     "shape": 7,
+     "link": null
+    },
+    {
+     "localized_name": "negative_coords",
+     "name": "negative_coords",
+     "type": "STRING",
+     "shape": 7,
+     "link": null
+    },
+    {
+     "localized_name": "threshold",
+     "name": "threshold",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "threshold"
+     }
+    },
+    {
+     "localized_name": "refine_iterations",
+     "name": "refine_iterations",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "refine_iterations"
+     }
+    },
+    {
+     "localized_name": "individual_masks",
+     "name": "individual_masks",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "individual_masks"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "masks",
+     "name": "masks",
+     "type": "MASK",
+     "links": [
+      11
+     ]
+    },
+    {
+     "localized_name": "bboxes",
+     "name": "bboxes",
+     "type": "BOUNDING_BOX",
+     "links": null
+    }
+   ],
+   "title": "Segment the reference",
+   "widgets_values": [
+    0.5,
+    2,
+    false
+   ]
+  },
+  {
+   "id": 11,
+   "type": "GrowMaskWithBlur",
+   "pos": [
+    -330,
+    680
+   ],
+   "size": [
+    270,
+    250
+   ],
+   "flags": {},
+   "order": 9,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "GrowMaskWithBlur"
+   },
+   "inputs": [
+    {
+     "localized_name": "mask",
+     "name": "mask",
+     "type": "MASK",
+     "link": 11
+    },
+    {
+     "localized_name": "expand",
+     "name": "expand",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "expand"
+     }
+    },
+    {
+     "localized_name": "incremental_expandrate",
+     "name": "incremental_expandrate",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "incremental_expandrate"
+     }
+    },
+    {
+     "localized_name": "tapered_corners",
+     "name": "tapered_corners",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "tapered_corners"
+     }
+    },
+    {
+     "localized_name": "flip_input",
+     "name": "flip_input",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "flip_input"
+     }
+    },
+    {
+     "localized_name": "blur_radius",
+     "name": "blur_radius",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "blur_radius"
+     }
+    },
+    {
+     "localized_name": "lerp_alpha",
+     "name": "lerp_alpha",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "lerp_alpha"
+     }
+    },
+    {
+     "localized_name": "decay_factor",
+     "name": "decay_factor",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "decay_factor"
+     }
+    },
+    {
+     "localized_name": "fill_holes",
+     "name": "fill_holes",
+     "type": "BOOLEAN",
+     "shape": 7,
+     "link": null,
+     "widget": {
+      "name": "fill_holes"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "mask",
+     "name": "mask",
+     "type": "MASK",
+     "links": [
+      12,
+      13
+     ]
+    },
+    {
+     "localized_name": "mask_inverted",
+     "name": "mask_inverted",
+     "type": "MASK",
+     "links": null
+    }
+   ],
+   "title": "Mask conditioning",
+   "widgets_values": [
+    16,
+    0.0,
+    true,
+    false,
+    8.0,
+    1.0,
+    1.0,
+    false
+   ]
+  },
+  {
+   "id": 12,
+   "type": "MaskPreview",
+   "pos": [
+    -330,
+    980
+   ],
+   "size": [
+    270,
+    250
+   ],
+   "flags": {},
+   "order": 12,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "MaskPreview"
+   },
+   "inputs": [
+    {
+     "localized_name": "mask",
+     "name": "mask",
+     "type": "MASK",
+     "link": 13
+    }
+   ],
+   "outputs": [],
+   "title": "Stencil preview",
+   "widgets_values": []
+  },
+  {
+   "id": 13,
+   "type": "GlitchShapeKrea2",
+   "pos": [
+    100,
+    470
+   ],
+   "size": [
+    320,
+    170
+   ],
+   "flags": {},
+   "order": 11,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "GlitchShapeKrea2"
+   },
+   "inputs": [
+    {
+     "localized_name": "distribution",
+     "name": "distribution",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "distribution"
+     }
+    },
+    {
+     "localized_name": "spike_density",
+     "name": "spike_density",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "spike_density"
+     }
+    },
+    {
+     "localized_name": "noise_scale",
+     "name": "noise_scale",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "noise_scale"
+     }
+    },
+    {
+     "localized_name": "step_curve",
+     "name": "step_curve",
+     "type": "FLOAT",
+     "link": null,
+     "shape": 7
+    },
+    {
+     "localized_name": "block_curve",
+     "name": "block_curve",
+     "type": "FLOAT",
+     "link": null,
+     "shape": 7
+    },
+    {
+     "localized_name": "spatial_mask",
+     "name": "spatial_mask",
+     "type": "MASK",
+     "link": 12,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "shape",
+     "name": "shape",
+     "type": "GLITCH_SHAPE",
+     "links": [
+      14
+     ]
+    }
+   ],
+   "title": "Glitch Shape (Krea2)",
+   "widgets_values": [
+    "spikes",
+    0.05,
+    4
+   ]
+  },
+  {
+   "id": 14,
+   "type": "GlitchModelKrea2",
+   "pos": [
+    470,
+    130
+   ],
+   "size": [
+    300,
+    314
+   ],
+   "flags": {},
+   "order": 13,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "GlitchModelKrea2"
+   },
+   "inputs": [
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "MODEL",
+     "link": 1
+    },
+    {
+     "localized_name": "enabled",
+     "name": "enabled",
+     "type": "BOOLEAN",
+     "link": null,
+     "widget": {
+      "name": "enabled"
+     }
+    },
+    {
+     "localized_name": "mode",
+     "name": "mode",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "mode"
+     }
+    },
+    {
+     "localized_name": "strength",
+     "name": "strength",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "strength"
+     }
+    },
+    {
+     "localized_name": "probability",
+     "name": "probability",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "probability"
+     }
+    },
+    {
+     "localized_name": "target",
+     "name": "target",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "target"
+     }
+    },
+    {
+     "localized_name": "block_start",
+     "name": "block_start",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "block_start"
+     }
+    },
+    {
+     "localized_name": "block_end",
+     "name": "block_end",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "block_end"
+     }
+    },
+    {
+     "localized_name": "step_start",
+     "name": "step_start",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "step_start"
+     }
+    },
+    {
+     "localized_name": "step_end",
+     "name": "step_end",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "step_end"
+     }
+    },
+    {
+     "localized_name": "glitch_seed",
+     "name": "glitch_seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "glitch_seed"
+     }
+    },
+    {
+     "localized_name": "shape",
+     "name": "shape",
+     "type": "GLITCH_SHAPE",
+     "link": 14,
+     "shape": 7
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "MODEL",
+     "links": [
+      15
+     ]
+    },
+    {
+     "localized_name": "recipe",
+     "name": "recipe",
+     "type": "STRING",
+     "links": [
+      16
+     ]
+    }
+   ],
+   "title": "Glitch Model (Krea2)",
+   "widgets_values": [
+    true,
+    "noise",
+    0.5,
+    0.25,
+    "both",
+    0,
+    27,
+    0,
+    2,
+    0
+   ]
+  },
+  {
+   "id": 15,
+   "type": "KSampler",
+   "pos": [
+    1280,
+    130
+   ],
+   "size": [
+    300,
+    262
+   ],
+   "flags": {},
+   "order": 14,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "KSampler"
+   },
+   "inputs": [
+    {
+     "localized_name": "model",
+     "name": "model",
+     "type": "MODEL",
+     "link": 15
+    },
+    {
+     "localized_name": "positive",
+     "name": "positive",
+     "type": "CONDITIONING",
+     "link": 4
+    },
+    {
+     "localized_name": "negative",
+     "name": "negative",
+     "type": "CONDITIONING",
+     "link": 5
+    },
+    {
+     "localized_name": "latent_image",
+     "name": "latent_image",
+     "type": "LATENT",
+     "link": 6
+    },
+    {
+     "localized_name": "seed",
+     "name": "seed",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "seed"
+     }
+    },
+    {
+     "localized_name": "steps",
+     "name": "steps",
+     "type": "INT",
+     "link": null,
+     "widget": {
+      "name": "steps"
+     }
+    },
+    {
+     "localized_name": "cfg",
+     "name": "cfg",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "cfg"
+     }
+    },
+    {
+     "localized_name": "sampler_name",
+     "name": "sampler_name",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "sampler_name"
+     }
+    },
+    {
+     "localized_name": "scheduler",
+     "name": "scheduler",
+     "type": "COMBO",
+     "link": null,
+     "widget": {
+      "name": "scheduler"
+     }
+    },
+    {
+     "localized_name": "denoise",
+     "name": "denoise",
+     "type": "FLOAT",
+     "link": null,
+     "widget": {
+      "name": "denoise"
+     }
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "LATENT",
+     "name": "LATENT",
+     "type": "LATENT",
+     "links": [
+      17
+     ]
+    }
+   ],
+   "title": "KSampler (seed fixed)",
+   "widgets_values": [
+    123456789,
+    "fixed",
+    8,
+    1.0,
+    "er_sde",
+    "simple",
+    1.0
+   ]
+  },
+  {
+   "id": 16,
+   "type": "VAEDecode",
+   "pos": [
+    1650,
+    130
+   ],
+   "size": [
+    160,
+    46
+   ],
+   "flags": {},
+   "order": 15,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "VAEDecode"
+   },
+   "inputs": [
+    {
+     "localized_name": "samples",
+     "name": "samples",
+     "type": "LATENT",
+     "link": 17
+    },
+    {
+     "localized_name": "vae",
+     "name": "vae",
+     "type": "VAE",
+     "link": 18
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "IMAGE",
+     "name": "IMAGE",
+     "type": "IMAGE",
+     "links": [
+      19
+     ]
+    }
+   ],
+   "title": "Decode"
+  },
+  {
+   "id": 17,
+   "type": "SaveImage",
+   "pos": [
+    1880,
+    130
+   ],
+   "size": [
+    320,
+    320
+   ],
+   "flags": {},
+   "order": 16,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "SaveImage"
+   },
+   "inputs": [
+    {
+     "localized_name": "images",
+     "name": "images",
+     "type": "IMAGE",
+     "link": 19
+    },
+    {
+     "localized_name": "filename_prefix",
+     "name": "filename_prefix",
+     "type": "STRING",
+     "link": null,
+     "widget": {
+      "name": "filename_prefix"
+     }
+    }
+   ],
+   "outputs": [],
+   "title": "Save",
+   "widgets_values": [
+    "glitchlab/mask-stencil"
+   ]
+  },
+  {
+   "id": 18,
+   "type": "PreviewAny",
+   "pos": [
+    830,
+    -140
+   ],
+   "size": [
+    420,
+    160
+   ],
+   "flags": {},
+   "order": 17,
+   "mode": 0,
+   "properties": {
+    "Node name for S&R": "PreviewAny"
+   },
+   "inputs": [
+    {
+     "localized_name": "source",
+     "name": "source",
+     "type": "*",
+     "link": 16
+    }
+   ],
+   "outputs": [
+    {
+     "localized_name": "STRING",
+     "name": "STRING",
+     "type": "STRING",
+     "links": null
+    }
+   ],
+   "title": "Recipe",
+   "widgets_values": []
+  },
+  {
+   "id": 19,
+   "type": "MarkdownNote",
+   "pos": [
+    -700,
+    -420
+   ],
+   "size": [
+    560,
+    500
+   ],
+   "flags": {},
+   "order": 18,
+   "mode": 0,
+   "properties": {},
+   "title": "Read me",
+   "widgets_values": [
+    "## Glitch shaped like a real thing\n\nSegment any picture, use the silhouette as the glitch's stencil. The generated image has nothing to do with the reference: only the **shape** of the damage comes from it.\n\n### Model\n\n`sam3.1_multiplex_fp16.safetensors` (1.75 GB) goes in `ComfyUI/models/checkpoints/`.\n\nhttps://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors\n\nIf the node is missing entirely, your ComfyUI predates SAM3. Swap in any other MASK source — the rest of the graph is unchanged.\n\n### Prompt syntax (it is not a weight)\n\nMax **32 tokens**. Commas separate categories, and `:N` is **how many objects** of that category to find, *not* a strength:\n\n```\ncat:2, window:4\n```\n\nParenthesised weights like `(cat:1.2)` are stripped — do not use them.\n\n### Leave `individual_masks` off\n\nOn, it returns one mask **per object**. The glitch node reads a stack of masks as *frames played across the sampling steps*, so five cats would animate over the run instead of glitching five regions.\n\n### Notes\n\n- The mask is stretched onto the image, so a reference at your output's aspect ratio keeps the silhouette undistorted.\n- The mask is a **soft multiplier**: grey = partial glitch. The blur in `Mask conditioning` is what feathers the edge. Nothing is thresholded.\n- Empty mask? Lower `threshold` toward 0.3, or use a simpler noun.\n- Needs comfyui-kjnodes for `GrowMaskWithBlur`."
+   ]
+  }
+ ],
+ "links": [
+  [
+   1,
+   1,
+   0,
+   14,
+   0,
+   "MODEL"
+  ],
+  [
+   2,
+   2,
+   0,
+   3,
+   0,
+   "CLIP"
+  ],
+  [
+   3,
+   3,
+   0,
+   4,
+   0,
+   "CONDITIONING"
+  ],
+  [
+   4,
+   3,
+   0,
+   15,
+   1,
+   "CONDITIONING"
+  ],
+  [
+   5,
+   4,
+   0,
+   15,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   6,
+   5,
+   0,
+   15,
+   3,
+   "LATENT"
+  ],
+  [
+   7,
+   7,
+   0,
+   10,
+   1,
+   "IMAGE"
+  ],
+  [
+   8,
+   8,
+   0,
+   10,
+   0,
+   "MODEL"
+  ],
+  [
+   9,
+   8,
+   1,
+   9,
+   0,
+   "CLIP"
+  ],
+  [
+   10,
+   9,
+   0,
+   10,
+   2,
+   "CONDITIONING"
+  ],
+  [
+   11,
+   10,
+   0,
+   11,
+   0,
+   "MASK"
+  ],
+  [
+   12,
+   11,
+   0,
+   13,
+   5,
+   "MASK"
+  ],
+  [
+   13,
+   11,
+   0,
+   12,
+   0,
+   "MASK"
+  ],
+  [
+   14,
+   13,
+   0,
+   14,
+   11,
+   "GLITCH_SHAPE"
+  ],
+  [
+   15,
+   14,
+   0,
+   15,
+   0,
+   "MODEL"
+  ],
+  [
+   16,
+   14,
+   1,
+   18,
+   0,
+   "STRING"
+  ],
+  [
+   17,
+   15,
+   0,
+   16,
+   0,
+   "LATENT"
+  ],
+  [
+   18,
+   6,
+   0,
+   16,
+   1,
+   "VAE"
+  ],
+  [
+   19,
+   16,
+   0,
+   17,
+   0,
+   "IMAGE"
+  ]
+ ],
+ "groups": [],
+ "config": {},
+ "extra": {
+  "ds": {
+   "scale": 0.7,
+   "offset": [
+    800,
+    500
+   ]
+  }
+ },
+ "version": 0.4
+}

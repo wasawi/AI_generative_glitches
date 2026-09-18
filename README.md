@@ -153,10 +153,16 @@ step and block windows still limit where it acts,
 so open them fully (`step_start` 0, `step_end` 999, `block_start` 0, `block_end` 27) when you let a curve
 do the shaping.
 
-**Masks.** Any `MASK` works: KJNodes `CreateShapeMask`, `CreateGradientMask`, `CreateVoronoiMask`,
-`CreateFluidMask`, or a mask painted with ComfyUI's mask editor on a `Load Image` node. The mask is
-stretched to the image, so draw it at the image's aspect ratio. A mask with several frames plays across
-the sampling steps (first frame at step 0, last frame at the final step).
+**Masks.** Any `MASK` works: ComfyUI's own `SAM3 Detect` (segment by text — see
+[Masks from segmentation](#masks-from-segmentation)), KJNodes `CreateShapeMask`, `CreateGradientMask`,
+`CreateVoronoiMask`, `CreateFluidMask`, or a mask painted with ComfyUI's mask editor on a `Load Image`
+node. The mask is stretched to the image, so draw it at the image's aspect ratio. A mask with several
+frames plays across the sampling steps (first frame at step 0, last frame at the final step).
+
+The mask is a multiplier, not a switch: mid-grey is a half-strength glitch, and a blurred edge fades the
+glitch out across that edge. Nothing is thresholded. It is also reduced to the image token grid — 64×64
+tokens at 1024×1024, 104×78 at 1664×1248, one token being 16×16 px — so shapes two or three tokens across
+survive and anything finer does not. A bicycle frame yes; its spokes no.
 
 `workflows/krea2-glitch-shape.json` is a ready example: the smoke workflow with `noise` mode shaped by
 `spikes` (density 0.05, blob size 4) inside a centred circle from `CreateShapeMask`. It needs
@@ -183,6 +189,74 @@ KSampler seed stay manual, and `step_curve`/`block_curve` stay free for a Spline
 | mask `frames` | 1–8 (each frame is a full-size mask tensor, so this is deliberately far below the node's 4096) |
 | mask canvas | 512, 768 or 1024 square |
 | mask position and size | derived from the canvas, so the shape always stays on it (10–60 % of the canvas) |
+
+## Masks from segmentation
+
+`SAM3 Detect` turns a text phrase into a mask, so the glitch can follow a real shape instead of a circle
+or a square. It is a core ComfyUI node — nothing to install beyond the checkpoint.
+
+**The ordering problem.** SAM3 segments a finished picture, but the glitch runs *while* the picture is
+being made, and the most interesting settings damage steps 0–2, when nothing recognisable exists yet. You
+cannot mask the bicycle before the bicycle is drawn. There are two ways round it, one workflow each.
+
+**Two passes, one picture** — `workflows/krea2-glitch-mask-sam3.json`. Pass 1 draws the picture
+untouched, `SAM3 Detect` segments it, and pass 2 re-denoises **only the masked region**, starting from
+pass 1's own latent.
+
+Re-running the same seed is not enough, and this is worth understanding before you change the graph.
+Glitching the early steps changes the composition decisions themselves, and since every block is
+attention over all tokens, damage inside the mask reaches every other token on the very next block. A
+second full generation therefore gives you a *different* subject, correctly masked — which is not what
+anyone wants. `SetLatentNoiseMask` is what fixes it: at each step the sampler keeps the new result inside
+the mask and restores pass 1's latent outside it, so everything outside the mask comes out identical
+rather than merely similar.
+
+Pass 2's `denoise` then decides how much of the subject survives inside the mask: around `0.4`–`0.6` it
+is clearly the same object with damage, `0.75` (the default) leaves it recognisable but strongly
+distorted, and `1.0` rebuilds the masked region from scratch. Note that `denoise` below 1 shortens the
+run, and the glitch node counts steps actually sampled — at 8 steps and `denoise` 0.75 there are 6, so
+`step_end` 2 covers the first three of those.
+
+ComfyUI caches pass 1, so only the first queue pays for it; changing strength, mode, `glitch_seed` or
+`denoise` afterwards re-runs the glitched pass alone. Look at the `Where the damage will land` overlay
+before judging the output.
+
+**A stencil from any picture** — `workflows/krea2-glitch-mask-stencil.json`. Segment a photo you already
+have and use the silhouette as the shape of the damage: a glitch shaped like a cat, a face, a road sign.
+No second pass, no ordering problem. The generated image has nothing to do with the reference; only the
+outline is borrowed. The mask is stretched to the image, so a reference at your output's aspect ratio
+keeps the silhouette undistorted.
+
+**Conditioning the mask.** Both workflows put `GrowMaskWithBlur` between the segmenter and the glitch.
+Grow by about 3 tokens and blur by about 2 — 48 px and 32 px at 1024×1024. The growth absorbs the drift
+between the two passes; the blur turns the edge into a fade instead of a cliff, which is the whole point
+of the mask being a multiplier. Do not threshold it.
+
+**The model.** `sam3.1_multiplex_fp16.safetensors` (1.75 GB) goes in `ComfyUI/models/checkpoints/`, from
+[Comfy-Org/sam3.1](https://huggingface.co/Comfy-Org/sam3.1/resolve/main/checkpoints/sam3.1_multiplex_fp16.safetensors).
+It carries its own text encoder, so the `CLIPTextEncode` holding the object phrase takes its `CLIP` from
+the SAM3 checkpoint, never from the Krea2 text encoder.
+
+**Prompt syntax.** At most 32 tokens. Commas separate categories, and `:N` is how many objects of that
+category to find — `bicycle:2, window:4` — *not* a weight. Parenthesised weights such as `(bicycle:1.2)`
+are stripped, so do not use them.
+
+**Leave `individual_masks` off.** Switched on it returns one mask per object, and a stack of masks is read
+here as frames played across the sampling steps — so several objects would animate over the run instead of
+glitching several regions.
+
+**If your ComfyUI has no `SAM3 Detect`.** Only the mask source changes; the rest of either graph stays as
+it is. Delete the three SAM3 nodes and connect any other `MASK` output to `GrowMaskWithBlur`:
+
+| Alternative | Needs |
+|---|---|
+| `LayerMask: SegmentAnythingUltra V2` (comfyui_layerstyle) | text phrase; downloads SAM + GroundingDINO |
+| `Apply CLIPSeg` (comfyui_essentials) | text phrase; downloads a small CLIPSeg model |
+| `SAMLoader` + `SAMDetectorCombined` (comfyui-impact-pack) | points or boxes rather than text |
+
+Both workflows need comfyui-kjnodes for `GrowMaskWithBlur` (and `ImageAndMaskPreview` in the two-pass
+one). The randomized shape workflow deliberately keeps its procedural masks: a segmenter would load a
+1.75 GB model on every queue, and its mask would no longer be a function of the master seed.
 
 ## Limits
 
