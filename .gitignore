@@ -4,4 +4,4 @@ __pycache__/
 .pytest_cache/
 .DS_Store
 ref_images/
-workflows/krea2-glitch-mask-sam3_mine.json
+workflows/*_mine.json
