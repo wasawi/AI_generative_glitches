@@ -292,3 +292,128 @@ COMFYUI_ROOT=/path/to/ComfyUI KREA2_GGUF=/path/to/krea2.gguf \
 The example workflows name the checkpoint, text encoder and VAE used while developing them; substitute
 your own in the loader nodes. Design documents and implementation plans: `docs/superpowers/`.
 Licence: MIT (see `LICENSE`).
+
+## Gallery
+
+Every picture here came from the two-pass masked workflow: one clean pass, `SAM3 Detect` finds the
+subject, then the glitched pass repaints only that region. Newest first; within a group only the
+glitch seed changes.
+
+**`noise` · strength 100 · probability 0.0001 · `gaussian` blob 4 · steps 0–2**
+
+_Probability 0.0001 rounds to a **single** channel out of 6,144 — one number in the model's description of each patch, hit 100× harder than it normally speaks._
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-01.jpg"><img src="docs/images/glitch-01.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-02.jpg"><img src="docs/images/glitch-02.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-03.jpg"><img src="docs/images/glitch-03.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-04.jpg"><img src="docs/images/glitch-04.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-05.jpg"><img src="docs/images/glitch-05.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-06.jpg"><img src="docs/images/glitch-06.jpg" width="100%"></a></td>
+</tr>
+</table>
+
+**`noise` · strength 100 · probability 0.0001 · `binary` blob 4 · steps 0–2**
+
+_Probability 0.0001 rounds to a **single** channel out of 6,144 — one number in the model's description of each patch, hit 100× harder than it normally speaks._
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-07.jpg"><img src="docs/images/glitch-07.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-08.jpg"><img src="docs/images/glitch-08.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-09.jpg"><img src="docs/images/glitch-09.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-13.jpg"><img src="docs/images/glitch-13.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-14.jpg"><img src="docs/images/glitch-14.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-15.jpg"><img src="docs/images/glitch-15.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-16.jpg"><img src="docs/images/glitch-16.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-10.jpg"><img src="docs/images/glitch-10.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-11.jpg"><img src="docs/images/glitch-11.jpg" width="100%"></a></td>
+</tr>
+</table>
+
+**`noise` · strength 20 · probability 0.025 · `spikes` blob 4 · steps 0–2**
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-17.jpg"><img src="docs/images/glitch-17.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-18.jpg"><img src="docs/images/glitch-18.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-19.jpg"><img src="docs/images/glitch-19.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-20.jpg"><img src="docs/images/glitch-20.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-21.jpg"><img src="docs/images/glitch-21.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-22.jpg"><img src="docs/images/glitch-22.jpg" width="100%"></a></td>
+</tr>
+</table>
+
+**`noise` · strength 60 · probability 0.025 · `spikes` blob 4 · steps 0–2**
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-23.jpg"><img src="docs/images/glitch-23.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-25.jpg"><img src="docs/images/glitch-25.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-24.jpg"><img src="docs/images/glitch-24.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-26.jpg"><img src="docs/images/glitch-26.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-27.jpg"><img src="docs/images/glitch-27.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-28.jpg"><img src="docs/images/glitch-28.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-29.jpg"><img src="docs/images/glitch-29.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-30.jpg"><img src="docs/images/glitch-30.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-31.jpg"><img src="docs/images/glitch-31.jpg" width="100%"></a></td>
+</tr>
+</table>
+
+**`noise` · strength 60 · probability 0.025 · `gaussian` blob 1 · steps 0–2**
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-32.jpg"><img src="docs/images/glitch-32.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-34.jpg"><img src="docs/images/glitch-34.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-33.jpg"><img src="docs/images/glitch-33.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-35.jpg"><img src="docs/images/glitch-35.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-36.jpg"><img src="docs/images/glitch-36.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-37.jpg"><img src="docs/images/glitch-37.jpg" width="100%"></a></td>
+</tr>
+</table>
+
+**`noise` · strength 60 · probability 0.025 · `spikes` blob 4 · steps 0–2**
+
+<table>
+<tr>
+<td width="33%"><a href="docs/images/glitch-38.jpg"><img src="docs/images/glitch-38.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-39.jpg"><img src="docs/images/glitch-39.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-40.jpg"><img src="docs/images/glitch-40.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-41.jpg"><img src="docs/images/glitch-41.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-42.jpg"><img src="docs/images/glitch-42.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-43.jpg"><img src="docs/images/glitch-43.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-44.jpg"><img src="docs/images/glitch-44.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-45.jpg"><img src="docs/images/glitch-45.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-46.jpg"><img src="docs/images/glitch-46.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-47.jpg"><img src="docs/images/glitch-47.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-48.jpg"><img src="docs/images/glitch-48.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-49.jpg"><img src="docs/images/glitch-49.jpg" width="100%"></a></td>
+</tr>
+<tr>
+<td width="33%"><a href="docs/images/glitch-50.jpg"><img src="docs/images/glitch-50.jpg" width="100%"></a></td>
+<td width="33%"><a href="docs/images/glitch-51.jpg"><img src="docs/images/glitch-51.jpg" width="100%"></a></td>
+<td width="33%"></td>
+</tr>
+</table>

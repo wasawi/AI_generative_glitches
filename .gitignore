@@ -5,3 +5,4 @@ __pycache__/
 .DS_Store
 ref_images/
 workflows/*_mine.json
+ref_images2/
