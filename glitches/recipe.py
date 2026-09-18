@@ -67,9 +67,10 @@ class GlitchRecipe:
             raise ValueError(f"probability must be between 0 and 1; got {probability_value:g}")
         block_start_value, block_end_value = _int_range("block", block_start, block_end)
         step_start_value, step_end_value = _int_range("step", step_start, step_end)
-        seed = _int("glitch_seed", glitch_seed)
-        if not 0 <= seed <= SEED_MAX:
-            raise ValueError(f"glitch_seed must be between 0 and {SEED_MAX}; got {seed}")
+        # A seed is an arbitrary bit pattern, not a meaningful range, so fold any integer into
+        # range rather than aborting the run. A linked input bypasses the widget's min/max, and
+        # ComfyUI's own PrimitiveInt randomises across the signed range, so negatives do arrive.
+        seed = _int("glitch_seed", glitch_seed) & SEED_MAX
         return cls(bool(enabled), mode, strength_value, probability_value, target,
                    block_start_value, block_end_value, step_start_value, step_end_value, seed)
 

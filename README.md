@@ -47,7 +47,7 @@ your image metadata.
 | `target` | Glitch the output of `attention`, `mlp` or `both` in each block |
 | `block_start`, `block_end` | Which of the 28 main blocks (0–27), inclusive. A value past the model's last block is clamped, never an error |
 | `step_start`, `step_end` | Which sampling steps, inclusive; step 0 is the first step KSampler runs |
-| `glitch_seed` | Picks the channels and the noise. Same seed + same settings = same glitch. Keep it fixed while comparing runs; change it deliberately to get a different glitch pattern |
+| `glitch_seed` | Picks the channels and the noise. Same seed + same settings = same glitch. Keep it fixed while comparing runs; change it deliberately to get a different glitch pattern. Any integer is accepted: a negative or oversized seed folds into range, never an error — which matters when the input is linked, since a link bypasses the widget's limits |
 
 Only the image being generated is glitched. Prompt tokens, the text-fusion stage and reference images are
 never touched, so the model still reads the prompt; it just draws it wrongly.

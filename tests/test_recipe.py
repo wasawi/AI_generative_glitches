@@ -71,12 +71,27 @@ def test_strength_accepts_any_finite_value_including_negatives(mode):
         ({"block_start": 5, "block_end": 4}, r"block_end \(4\) must be >= block_start \(5\)"),
         ({"step_start": 3, "step_end": 2}, r"step_end \(2\) must be >= step_start \(3\)"),
         ({"step_end": 2.5}, "step_end must be an integer"),
-        ({"glitch_seed": -1}, "glitch_seed must be between 0 and 9223372036854775807"),
+        ({"glitch_seed": 1.5}, "glitch_seed must be an integer"),
     ],
 )
 def test_validation_messages(overrides, message):
     with pytest.raises(ValueError, match=message):
         build(**overrides)
+
+
+def test_seed_is_folded_into_range_never_raising():
+    # a negative seed used to abort the generation; a linked input bypasses the widget's
+    # min, and ComfyUI's PrimitiveInt randomises across the signed range
+    limit = 2**63 - 1
+    assert build(glitch_seed=-1).glitch_seed == limit
+    assert build(glitch_seed=-913875611599450).glitch_seed == (-913875611599450 & limit)
+    assert build(glitch_seed=0).glitch_seed == 0
+    assert build(glitch_seed=limit).glitch_seed == limit
+    # folding is deterministic, so the same negative seed still reproduces the same glitch
+    assert build(glitch_seed=-7).glitch_seed == build(glitch_seed=-7).glitch_seed
+    # every folded seed lands in range
+    for bad in (-1, -2, -913875611599450, 2**63, 2**70 + 3):
+        assert 0 <= build(glitch_seed=bad).glitch_seed <= limit
 
 
 def test_block_range_is_clamped_to_the_model_never_raising():
